@@ -229,6 +229,9 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--sc-brass-li
 }
 .sellrow__go:hover:not(:disabled) { background: rgba(134, 87, 44, 0.15); color: var(--sc-ivory); }
 .sellrow__go:disabled { color: var(--sc-disabled); border-color: rgba(134, 87, 44, 0.25); cursor: default; }
+.selling__note { font-family: var(--sc-hand); font-style: italic; color: var(--sc-muted); font-size: 13px; padding: 0 2px 4px; }
+.sellrow--none { grid-template-columns: 44px 1fr auto; opacity: 0.75; }
+.sellrow__none { font-size: 12px; font-style: italic; color: var(--sc-disabled); padding-right: 4px; }
 
 /* ── Footer ─────────────────────────────────────────────────────── */
 .foot {

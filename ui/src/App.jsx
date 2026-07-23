@@ -137,7 +137,7 @@ export default function App() {
     <div className="scrim">
       <div className="counter">
         <header className="head">
-          <div className="head__eyebrow">~ Sovereign County Mercantile ~</div>
+          <div className="head__eyebrow">~ Sovereign County ~</div>
           <h1 className="head__name">{store.label}</h1>
           <div className="head__wallet">{money(view.money)} <span>on hand</span></div>
           <button className="head__close" onClick={() => post('close')} aria-label="Close">✕</button>
@@ -222,20 +222,21 @@ export default function App() {
 
         {tab === 'sell' && (
           <div className="selling">
-            {store.sell.length === 0 ? (
-              <div className="empty">The clerk isn't buying anything you carry.</div>
-            ) : (
-              store.sell.map((entry) =>
+            <div className="selling__note">The clerk buys the following — condition inspected at the counter.</div>
+            {store.sell.map((entry) =>
+              entry.stacks.length > 0 ? (
                 entry.stacks.map((stack, i) => (
                   <SellRow key={entry.item + ':' + i} entry={entry} stack={stack} busy={busy} onSell={sellStack} />
                 ))
+              ) : (
+                <SellRow key={entry.item + ':none'} entry={entry} stack={null} busy={busy} onSell={sellStack} />
               )
             )}
           </div>
         )}
 
         <footer className="foot">
-          <span>SOVEREIGN MERCANTILE AUTHORITY — ALL SALES FINAL</span>
+          <span>SOVEREIGN COUNTY — ALL SALES FINAL</span>
           <span className="foot__hint">ESC to leave the counter</span>
         </footer>
       </div>
@@ -245,6 +246,23 @@ export default function App() {
 
 function SellRow({ entry, stack, busy, onSell }) {
   const [qty, setQty] = useState(1)
+
+  if (!stack) {
+    // the clerk buys this, the player carries none — show the offer anyway
+    return (
+      <div className="sellrow sellrow--none">
+        <ItemArt item={entry.item} label={entry.label} />
+        <div className="sellrow__info">
+          <span className="sellrow__label">{entry.label}</span>
+          <span className="sellrow__meta">
+            <span>{money(entry.price)} each{entry.minCondition ? ` · ${entry.minCondition}%+ condition` : ''}</span>
+          </span>
+        </div>
+        <span className="sellrow__none">None carried</span>
+      </div>
+    )
+  }
+
   const max = stack.qty || 1
   const unit = stack.percentage != null && entry.scaleByCondition
     ? entry.price * (stack.percentage / 100)

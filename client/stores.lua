@@ -46,7 +46,9 @@ local function spawnPed(p)
         Util.warn(('ped model %s never loaded'):format(p.npcModel))
         return nil
     end
-    local ped = CreatePed(model, p.coords.x, p.coords.y, p.coords.z - 1.0, p.heading, false, false, false, false)
+    -- exact configured height — RDR3 peds spawn at foot level (an offset here
+    -- sinks them into the floor and freezes them kneeling; ledger Phase 1 X1)
+    local ped = CreatePed(model, p.coords.x, p.coords.y, p.coords.z, p.heading, false, false, false, false)
     Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- SetRandomOutfitVariation
     SetEntityCanBeDamaged(ped, false)
     SetEntityInvincible(ped, true)

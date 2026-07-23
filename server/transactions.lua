@@ -61,14 +61,14 @@ local function buildSellView(src, store)
                 end
             end
         end
-        if #stacks > 0 then
-            view[#view + 1] = {
-                item = entry.item, label = entry.label, price = entry.price,
-                category = entry.category, weapon = entry.weapon,
-                minCondition = entry.minCondition, scaleByCondition = entry.scaleByCondition,
-                stacks = stacks,
-            }
-        end
+        -- ALWAYS list the entry — the buy-board shows what the clerk buys even
+        -- when the player carries none (ledger Phase 1 C1 confusion fix)
+        view[#view + 1] = {
+            item = entry.item, label = entry.label, price = entry.price,
+            category = entry.category, weapon = entry.weapon,
+            minCondition = entry.minCondition, scaleByCondition = entry.scaleByCondition,
+            stacks = stacks,
+        }
     end
     return view
 end
