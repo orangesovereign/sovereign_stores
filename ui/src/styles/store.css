@@ -20,7 +20,7 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--sv-brass-li
 .label, .depts__label, .goods__label, .order__label, .masthead__est, .status__label {
   font-family: var(--sv-label);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
 }
 
 .scrim {

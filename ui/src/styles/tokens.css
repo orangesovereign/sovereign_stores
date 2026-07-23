@@ -13,9 +13,9 @@
   font-weight: 400; font-style: normal; font-display: block;
 }
 @font-face {
-  font-family: 'Special Elite';
-  src: url('../assets/fonts/SpecialElite-Regular.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: block;
+  font-family: 'Cinzel';
+  src: url('../assets/fonts/Cinzel-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: block;
 }
 @font-face {
   font-family: 'Crimson Text';
@@ -65,7 +65,7 @@
 
   /* Type */
   --sv-display: 'Rye', 'Cinzel', Georgia, serif;
-  --sv-label: 'Special Elite', 'Courier New', monospace;
+  --sv-label: 'Cinzel', Georgia, serif;   /* owner rejected the typewriter face */
   --sv-body: 'Crimson Text', Georgia, serif;
 
   /* Rhythm */

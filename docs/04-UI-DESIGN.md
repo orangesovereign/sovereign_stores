@@ -17,9 +17,10 @@ nothing below 11px, ever. Numbers use tabular figures.
 - **Accents:** brass/gold for structure, labels, monograms, chart bars (brass→oxblood gradient);
   oxblood red strictly for primary actions (Complete Purchase, Assign Store, active nav pill) and
   danger states (TAX DELINQUENT, REPOSSESSED chips).
-- **Type:** display = Rye (store names, section titles); labels/eyebrows/data = Special Elite
-  (typewriter, uppercase, letterspaced); body = Crimson Text. All three bundled locally as woff2
-  (Google OFL builds, downloaded 2026-07-23) — the design-doc font spec, now honored. No CDN.
+- **Type:** display = Rye (store names, section titles); labels/eyebrows = Cinzel, uppercase,
+  letterspaced (engraved-plate serif — the concept's typewriter face was REJECTED by the owner
+  2026-07-23, do not reintroduce it); body = Crimson Text. All bundled locally as woff2 (OFL).
+  No CDN, ever.
 - **Monogram:** rotated-square (diamond) badge with the store's initial (or code letter),
   brass border on black; used top-left of every panel identity block.
 - **Status chips:** small bordered uppercase chips — OPEN (green/sage), CLOSED (neutral),
@@ -29,7 +30,7 @@ nothing below 11px, ever. Numbers use tabular figures.
 
 ## Screen 1 — Storefront (buyer; Phase 1, restyle NOW)
 
-- **Header band:** diamond monogram · eyebrow "EST. {year} · {place}" (Special Elite, brass) ·
+- **Header band:** diamond monogram · eyebrow "EST. {year} · {place}" (Cinzel, brass) ·
   store name huge in Rye · tagline in italic body under it · right side: STORE STATUS
   ("Open for Business" with green dot) + ✕ close.
 - **Tab bar:** "Shop Goods" / "Sell to Store" with a pill badge showing the count of things the
