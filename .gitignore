@@ -8,3 +8,6 @@ Thumbs.db
 # node (storefront NUI arrives Phase 1)
 node_modules/
 ui/node_modules/
+
+# vite build cache
+ui/node_modules/

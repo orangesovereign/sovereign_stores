@@ -18,6 +18,11 @@ local function buildReport()
     }
     if report.oxmysql and #report.dbMissing == 0 then
         report.counts.stores = tonumber(Db.scalar('SELECT COUNT(*) FROM sovereign_stores', {})) or 0
+        report.counts.fund = Fund.balance()
+        local types, spots = 0, 0
+        for _ in pairs(Npc.stores) do types = types + 1 end
+        spots = #Npc.placements
+        report.counts.npcTypes, report.counts.npcSpots = types, spots
     end
     report.ok = (#report.config == 0) and report.oxmysql and (#report.dbMissing == 0)
     for _, dep in ipairs(report.deps) do
@@ -45,7 +50,9 @@ local function printReport(report)
     if not report.oxmysql then
         Util.err('  oxmysql not started — no database access')
     elseif #report.dbMissing == 0 then
-        Util.ok(('  %s (%d stores)'):format(_U('diag_ok'), report.counts.stores or 0))
+        Util.ok(('  %s (%d player stores · %d NPC types / %d spots · fund $%.2f)'):format(
+            _U('diag_ok'), report.counts.stores or 0,
+            report.counts.npcTypes or 0, report.counts.npcSpots or 0, report.counts.fund or 0))
     else
         for _, tbl in ipairs(report.dbMissing) do
             Util.err(('  %s: %s — run sql/install.sql'):format(_U('diag_missing'), tbl))
@@ -58,6 +65,10 @@ end
 
 CreateThread(function()
     Wait(1500) -- let dependencies finish their own boots
+    if Db.available() and #Db.verifySchema() == 0 then
+        Fund.load()
+        Npc.init()
+    end
     local report = buildReport()
     printReport(report)
     booted, bootOk = true, report.ok

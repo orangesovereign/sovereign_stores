@@ -6,12 +6,13 @@ lua54 'yes'
 author 'Sovereign County RP'
 description 'Unified commerce for Sovereign County: NPC stores + player-owned storefronts. Replaces vorp_stores.'
 repository 'https://github.com/orangesovereign/sovereign_stores'
-version '0.1.0'
+version '0.2.0'
 
 -- Load order is deliberate: config → locale → util → events → validate → bridge,
 -- then db.lua before anything that touches MySQL, core.lua last on each side.
 shared_scripts {
     'config/config.lua',
+    'config/npc_stores.lua',
     'config/locales/en.lua',
     'shared/util.lua',
     'shared/events.lua',
@@ -22,11 +23,22 @@ shared_scripts {
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/db.lua',
+    'server/fund.lua',
+    'server/npc_stores.lua',
+    'server/transactions.lua',
     'server/core.lua',
 }
 
 client_scripts {
+    'client/stores.lua',
+    'client/nui.lua',
     'client/core.lua',
+}
+
+ui_page 'ui/dist/index.html'
+files {
+    'ui/dist/index.html',
+    'ui/dist/assets/*',
 }
 
 -- oxmysql is deliberately not listed here (checked at runtime with a clear
