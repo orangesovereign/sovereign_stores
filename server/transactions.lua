@@ -21,6 +21,14 @@ local function findBuyEntry(store, item)
     return nil
 end
 
+-- One price authority for buys: sale-aware, mirrored exactly by the UI.
+local function unitPrice(entry)
+    if entry.salePercent and entry.salePercent > 0 then
+        return Util.round2(entry.price * (1 - entry.salePercent / 100))
+    end
+    return entry.price
+end
+
 local function findSellEntry(store, item)
     for _, e in ipairs(store.sell) do if e.item == item then return e end end
     return nil
@@ -78,6 +86,8 @@ local function storePayload(src, store)
         ok = true,
         store = {
             key = store.key, label = store.label, category = store.category,
+            est = store.est, tagline = store.tagline, notice = store.notice,
+            code = store.code,          -- player stores (Phase 2); nil for NPC
             categories = store.categories,
             buy = store.buy,
             sell = buildSellView(src, store),
@@ -111,8 +121,9 @@ local function checkout(src, storeKey, cart)
         if not entry or qty < 1 or qty > MAX_LINE_QTY then
             return { ok = false, error = 'bad_line' }
         end
-        lines[#lines + 1] = { entry = entry, qty = qty, cost = Util.round2(entry.price * qty) }
-        total = Util.round2(total + entry.price * qty)
+        local unit = unitPrice(entry)
+        lines[#lines + 1] = { entry = entry, qty = qty, cost = Util.round2(unit * qty) }
+        total = Util.round2(total + unit * qty)
     end
 
     if not Bridge.money.canAfford(src, total) then

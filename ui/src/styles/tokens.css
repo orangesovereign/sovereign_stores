@@ -1,0 +1,76 @@
+/* =====================================================================
+   SOVEREIGN STORES · DESIGN TOKENS (owner-approved concept, docs/04)
+   ---------------------------------------------------------------------
+   Palette follows the county system (sc-theme lineage). Type follows
+   the concept: Rye display · Special Elite labels · Crimson Text body —
+   all bundled locally (OFL). No CDN, ever.
+   Rule zero: nothing renders below 11px.
+   ===================================================================== */
+
+@font-face {
+  font-family: 'Rye';
+  src: url('../assets/fonts/Rye-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Special Elite';
+  src: url('../assets/fonts/SpecialElite-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Crimson Text';
+  src: url('../assets/fonts/CrimsonText-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Crimson Text';
+  src: url('../assets/fonts/CrimsonText-SemiBold.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Crimson Text';
+  src: url('../assets/fonts/CrimsonText-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: block;
+}
+
+:root {
+  /* Ground */
+  --sv-black: #050505;
+  --sv-charcoal: #0a0a0a;
+  --sv-gunmetal: #131110;
+  --sv-raised: #191512;
+  --sv-well: #0e0c0a;
+  --sv-umber: #2a1d10;
+
+  /* Brass — structure, labels, monograms */
+  --sv-brass: #8a5c2e;
+  --sv-brass-light: #b08347;
+  --sv-gold: #d9a95c;
+
+  /* Oxblood — primary actions + danger only */
+  --sv-red: #6d1f12;
+  --sv-red-hover: #8a2a18;
+  --sv-red-dark: #451c0c;
+
+  /* Text */
+  --sv-parchment: #cfa878;
+  --sv-ivory: #e6d9bd;
+  --sv-muted: #9d8c74;
+  --sv-faint: #6a5d4c;
+
+  /* States */
+  --sv-sage: #7d8d5c;
+  --sv-amber: #b57e2c;
+  --sv-danger: #a03322;
+
+  /* Type */
+  --sv-display: 'Rye', 'Cinzel', Georgia, serif;
+  --sv-label: 'Special Elite', 'Courier New', monospace;
+  --sv-body: 'Crimson Text', Georgia, serif;
+
+  /* Rhythm */
+  --sv-frame: 1px solid var(--sv-umber);
+  --sv-hairline: 1px solid rgba(138, 92, 46, 0.35);
+  --sv-hairline-soft: 1px solid rgba(138, 92, 46, 0.18);
+  --sv-shadow: 0 22px 48px rgba(0, 0, 0, 0.8);
+}

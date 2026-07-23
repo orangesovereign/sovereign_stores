@@ -39,8 +39,9 @@ local function validateCatalog(storeKey, list, side, drift)
             out[#out + 1] = {
                 item     = entry.item,
                 label    = entry.label or (type(def) == 'table' and def.label) or entry.item,
-                desc     = (type(def) == 'table' and def.desc) or nil,
+                desc     = entry.desc or (type(def) == 'table' and def.desc) or nil,
                 price    = rollDrift(Util.round2(entry.price), drift),
+                salePercent = entry.salePercent,   -- optional config sale, priced server-side
                 category = entry.category or 'general',
                 weapon   = entry.weapon or nil,
                 minCondition     = entry.minCondition,
@@ -79,6 +80,9 @@ function Npc.init()
                 key        = key,
                 label      = def.label or key,
                 category   = def.category or 'general',
+                est        = def.est,
+                tagline    = def.tagline,
+                notice     = def.notice,
                 npcModel   = def.npcModel,
                 blip       = (not def.roaming) and def.blip or nil,  -- roaming: never a blip
                 roaming    = def.roaming or false,

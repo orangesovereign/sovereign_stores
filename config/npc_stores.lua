@@ -29,6 +29,9 @@ NPCStores = {
         enabled  = true,
         label    = 'General Store',
         category = 'general',
+        est      = 'EST. 1899 · SOVEREIGN COUNTY',   -- masthead eyebrow line
+        tagline  = 'Provisions, supplies & honest trade',
+        notice   = nil,   -- optional "Today's notice" card text in the storefront
         npcModel = 'U_M_M_NbxGeneralStoreOwner_01',
         blip     = { sprite = 1475879922, label = 'General Store' },
         roaming  = false,

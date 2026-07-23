@@ -1,12 +1,13 @@
 /* =====================================================================
-   SOVEREIGN STORES · STOREFRONT
-   One storefront for every store in the county — NPC or player-owned.
-   Everything shown here is server-supplied; the UI never invents a
-   price. UI copy is English for v1 (full locale pass lands in Phase 5).
+   SOVEREIGN STORES · STOREFRONT (concept build — docs/04-UI-DESIGN.md)
+   One storefront for every store in the county. Everything shown is
+   server-supplied; the UI never invents a price. Type scaled for
+   readability (rule zero) — the concept's look, not its font size.
    ===================================================================== */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { post, onMessage, itemImage } from './nui.js'
+import { CategoryIcon, IconBasket } from './components/Icons.jsx'
 
 const money = (n) => '$' + (Math.round((Number(n) || 0) * 100) / 100).toFixed(2)
 
@@ -26,20 +27,22 @@ const errText = (res) => {
   return res?.item ? `${base} (${res.item}).` : base
 }
 
-function ItemArt({ item, label }) {
+function ItemArt({ item, label, size }) {
   const [gone, setGone] = useState(false)
-  if (gone) return <div className="art art--empty">{(label || '?').slice(0, 1)}</div>
-  return <img className="art" src={itemImage(item)} alt="" onError={() => setGone(true)} />
+  if (gone) return <div className={'art art--empty' + (size ? ' art--' + size : '')}>{(label || '?').slice(0, 1)}</div>
+  return <img className={'art' + (size ? ' art--' + size : '')} src={itemImage(item)} alt="" onError={() => setGone(true)} />
 }
 
+const salePrice = (e) => e.salePercent ? e.price * (1 - e.salePercent / 100) : e.price
+
 export default function App() {
-  const [view, setView] = useState(null)      // { store, money }
+  const [view, setView] = useState(null)
   const [tab, setTab] = useState('buy')
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
-  const [cart, setCart] = useState({})        // item -> qty
+  const [cart, setCart] = useState({})
   const [busy, setBusy] = useState(false)
-  const [toast, setToast] = useState(null)    // { kind: 'good'|'bad', text }
+  const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
 
   const say = (kind, text) => {
@@ -76,11 +79,13 @@ export default function App() {
     return Object.entries(cart)
       .map(([item, qty]) => {
         const entry = store.buy.find((e) => e.item === item)
-        return entry ? { ...entry, qty, cost: entry.price * qty } : null
+        return entry ? { ...entry, qty, unit: salePrice(entry), cost: salePrice(entry) * qty } : null
       })
       .filter(Boolean)
   }, [store, cart])
-  const cartTotal = cartLines.reduce((s, l) => s + l.cost, 0)
+  const subtotal = cartLines.reduce((s, l) => s + l.cost, 0)
+  const fee = 0 // county fee line: $0.00 until a levy ever exists (docs/04)
+  const total = subtotal + fee
 
   if (!store) return null
 
@@ -131,37 +136,64 @@ export default function App() {
   }
 
   const cats = [{ key: 'all', label: 'All Goods' }, ...store.categories]
-  const canSell = store.sell.length > 0
+  const sellCount = store.sell.length
 
   return (
     <div className="scrim">
-      <div className="counter">
-        <header className="head">
-          <div className="head__eyebrow">~ Sovereign County ~</div>
-          <h1 className="head__name">{store.label}</h1>
-          <div className="head__wallet">{money(view.money)} <span>on hand</span></div>
-          <button className="head__close" onClick={() => post('close')} aria-label="Close">✕</button>
+      <div className="panel">
+
+        <header className="masthead">
+          <div className="masthead__id">
+            <div className="monogram"><span>{(store.label || '?').slice(0, 1)}</span></div>
+            <div className="masthead__names">
+              <div className="masthead__est">{store.est || '~ SOVEREIGN COUNTY ~'}</div>
+              <h1 className="masthead__name">{store.label}</h1>
+              {store.tagline && <div className="masthead__tag">{store.tagline}</div>}
+            </div>
+          </div>
+          <div className="masthead__side">
+            <div className="status">
+              <span className="status__label">Store Status</span>
+              <span className="status__value"><i className="dot dot--open" />Open for Business</span>
+            </div>
+            <button className="closebtn" onClick={() => post('close')} aria-label="Close">✕</button>
+          </div>
         </header>
 
-        {toast && <div className={`toast toast--${toast.kind}`}>{toast.text}</div>}
-
         <nav className="tabs">
-          <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>Buy</button>
-          {canSell && (
-            <button className={tab === 'sell' ? 'on' : ''} onClick={() => setTab('sell')}>Sell</button>
+          <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>Shop Goods</button>
+          {sellCount > 0 && (
+            <button className={tab === 'sell' ? 'on' : ''} onClick={() => setTab('sell')}>
+              Sell to Store <span className="tabs__badge">{sellCount} wanted</span>
+            </button>
           )}
         </nav>
 
+        {toast && <div className={`toast toast--${toast.kind}`}>{toast.text}</div>}
+
         {tab === 'buy' && (
-          <div className="trade">
-            <div className="goods">
-              <div className="filters">
-                <div className="chips">
-                  {cats.map((c) => (
-                    <button key={c.key} className={cat === c.key ? 'on' : ''} onClick={() => setCat(c.key)}>
-                      {c.label}
-                    </button>
-                  ))}
+          <div className="floor">
+            <aside className="depts">
+              <div className="depts__label">Departments</div>
+              {cats.map((c) => (
+                <button key={c.key} className={'dept' + (cat === c.key ? ' on' : '')} onClick={() => setCat(c.key)}>
+                  <span className="dept__icon"><CategoryIcon id={c.icon || c.key} /></span>
+                  <span className="dept__name">{c.label}</span>
+                </button>
+              ))}
+              {store.notice && (
+                <div className="notice">
+                  <div className="notice__title">Today's notice</div>
+                  <div className="notice__body">{store.notice}</div>
+                </div>
+              )}
+            </aside>
+
+            <section className="goods">
+              <div className="goods__bar">
+                <div className="goods__count">
+                  <span className="goods__label">Available Goods</span>
+                  <span className="goods__sub">{buyList.length} item{buyList.length === 1 ? '' : 's'} on the shelves</span>
                 </div>
                 <input
                   className="search" type="text" placeholder="Search the shelves…"
@@ -174,47 +206,79 @@ export default function App() {
               ) : (
                 <div className="grid">
                   {buyList.map((e) => (
-                    <button key={e.item} className="card" onClick={() => addToCart(e.item)}>
-                      <ItemArt item={e.item} label={e.label} />
-                      <span className="card__label">{e.label}</span>
-                      <span className="card__price">{money(e.price)}</span>
-                      {cart[e.item] ? <span className="card__inCart">×{cart[e.item]}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <aside className="basket">
-              <div className="basket__title">Basket</div>
-              {cartLines.length === 0 ? (
-                <div className="basket__empty">Tap goods to add them.</div>
-              ) : (
-                <div className="basket__lines">
-                  {cartLines.map((l) => (
-                    <div className="line" key={l.item}>
-                      <span className="line__label">{l.label}</span>
-                      <span className="line__qty">
-                        <button onClick={() => setQty(l.item, l.qty - 1)}>−</button>
-                        <b>{l.qty}</b>
-                        <button onClick={() => setQty(l.item, l.qty + 1)}>+</button>
-                      </span>
-                      <span className="line__cost">{money(l.cost)}</span>
+                    <div key={e.item} className="card">
+                      <div className="card__well">
+                        {e.salePercent ? <span className="card__sale">{e.salePercent}% OFF</span> : null}
+                        {e.stock != null && (
+                          <span className={'card__stock' + (e.stock <= 8 ? ' card__stock--low' : '')}>
+                            {e.stock <= 8 ? `Only ${e.stock} left` : `${e.stock} in stock`}
+                          </span>
+                        )}
+                        <ItemArt item={e.item} label={e.label} size="lg" />
+                      </div>
+                      <div className="card__cat">{catLabel(store, e.category)}</div>
+                      <div className="card__name">{e.label}</div>
+                      {e.desc && <div className="card__desc">{e.desc}</div>}
+                      <div className="card__foot">
+                        <span className="card__price">
+                          {e.salePercent ? <s>{money(e.price)}</s> : null}
+                          <b className={e.salePercent ? 'onsale' : ''}>{money(salePrice(e))}</b>
+                        </span>
+                        <button className="card__add" onClick={() => addToCart(e.item)} aria-label={'Add ' + e.label}>
+                          <IconBasket />
+                          {cart[e.item] ? <i className="card__count">{cart[e.item]}</i> : null}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="basket__foot">
-                <div className="basket__total">
-                  <span>Total</span><b>{money(cartTotal)}</b>
+            </section>
+
+            <aside className="order">
+              <div className="order__head">
+                <div>
+                  <div className="order__label">Your Order</div>
+                  <div className="order__sub">{cartLines.length} selection{cartLines.length === 1 ? '' : 's'}</div>
                 </div>
+                <span className="order__icon"><IconBasket /></span>
+              </div>
+
+              {cartLines.length === 0 ? (
+                <div className="order__empty">Tap goods to add them.</div>
+              ) : (
+                <div className="order__lines">
+                  {cartLines.map((l) => (
+                    <div className="oline" key={l.item}>
+                      <ItemArt item={l.item} label={l.label} size="sm" />
+                      <div className="oline__info">
+                        <span className="oline__name">{l.label}</span>
+                        <span className="oline__unit">{money(l.unit)} each</span>
+                      </div>
+                      <span className="stepper">
+                        <button onClick={() => setQty(l.item, l.qty - 1)}>−</button>
+                        <b>{l.qty}</b>
+                        <button onClick={() => setQty(l.item, l.qty + 1)}>+</button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="order__foot">
+                <div className="tally"><span>Subtotal</span><span>{money(subtotal)}</span></div>
+                <div className="tally"><span>County fee</span><span>{money(fee)}</span></div>
+                <div className="tally tally--due"><span>Total due</span><b>{money(total)}</b></div>
                 <button
-                  className="basket__go"
-                  disabled={busy || cartLines.length === 0 || cartTotal > view.money}
+                  className="paybtn"
+                  disabled={busy || cartLines.length === 0 || total > view.money}
                   onClick={checkout}
                 >
-                  {busy ? 'Ringing up…' : cartTotal > view.money ? 'Not enough cash' : 'Pay the clerk'}
+                  {busy ? 'Ringing up…' : total > view.money ? 'Not enough cash' : 'Complete Purchase'}
                 </button>
+                <div className="order__note">
+                  Payment is taken from the cash carried on your person — {money(view.money)} on hand.
+                </div>
               </div>
             </aside>
           </div>
@@ -236,29 +300,33 @@ export default function App() {
         )}
 
         <footer className="foot">
-          <span>SOVEREIGN COUNTY — ALL SALES FINAL</span>
-          <span className="foot__hint">ESC to leave the counter</span>
+          <span>{store.label}{store.code ? ` · Store Code ${store.code}` : ' · Sovereign County'}</span>
+          <span className="foot__esc"><i>ESC</i> Close</span>
         </footer>
       </div>
     </div>
   )
 }
 
+function catLabel(store, key) {
+  const c = store.categories.find((c) => c.key === key)
+  return c ? c.label : key
+}
+
 function SellRow({ entry, stack, busy, onSell }) {
   const [qty, setQty] = useState(1)
 
   if (!stack) {
-    // the clerk buys this, the player carries none — show the offer anyway
     return (
       <div className="sellrow sellrow--none">
-        <ItemArt item={entry.item} label={entry.label} />
+        <ItemArt item={entry.item} label={entry.label} size="sm" />
         <div className="sellrow__info">
           <span className="sellrow__label">{entry.label}</span>
           <span className="sellrow__meta">
-            <span>{money(entry.price)} each{entry.minCondition ? ` · ${entry.minCondition}%+ condition` : ''}</span>
+            {money(entry.price)} each{entry.minCondition ? ` · ${entry.minCondition}%+ condition` : ''}
           </span>
         </div>
-        <span className="sellrow__none">None carried</span>
+        <span className="sellrow__nonetag">None carried</span>
       </div>
     )
   }
@@ -270,17 +338,17 @@ function SellRow({ entry, stack, busy, onSell }) {
 
   return (
     <div className="sellrow">
-      <ItemArt item={entry.item} label={entry.label} />
+      <ItemArt item={entry.item} label={entry.label} size="sm" />
       <div className="sellrow__info">
         <span className="sellrow__label">{entry.label}</span>
         <span className="sellrow__meta">
           {stack.percentage != null && (
             <i className={'cond' + (stack.percentage < 40 ? ' cond--low' : '')}>{Math.floor(stack.percentage)}%</i>
           )}
-          <span>{money(unit)} each · {max} carried</span>
+          {money(unit)} each · {max} carried
         </span>
       </div>
-      <span className="line__qty">
+      <span className="stepper">
         <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
         <b>{Math.min(qty, max)}</b>
         <button onClick={() => setQty(Math.min(max, qty + 1))}>+</button>
