@@ -1,0 +1,10 @@
+# session/editor
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# node (storefront NUI arrives Phase 1)
+node_modules/
+ui/node_modules/

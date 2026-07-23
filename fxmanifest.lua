@@ -1,0 +1,40 @@
+fx_version 'cerulean'
+game 'rdr3'
+rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aware my resources *will* become incompatible once RedM ships.'
+lua54 'yes'
+
+author 'Sovereign County RP'
+description 'Unified commerce for Sovereign County: NPC stores + player-owned storefronts. Replaces vorp_stores.'
+repository 'https://github.com/orangesovereign/sovereign_stores'
+version '0.1.0'
+
+-- Load order is deliberate: config → locale → util → events → validate → bridge,
+-- then db.lua before anything that touches MySQL, core.lua last on each side.
+shared_scripts {
+    'config/config.lua',
+    'config/locales/en.lua',
+    'shared/util.lua',
+    'shared/events.lua',
+    'shared/validate.lua',
+    'shared/bridge.lua',
+}
+
+server_scripts {
+    '@oxmysql/lib/MySQL.lua',
+    'server/db.lua',
+    'server/core.lua',
+}
+
+client_scripts {
+    'client/core.lua',
+}
+
+-- oxmysql is deliberately not listed here (checked at runtime with a clear
+-- diagnostic instead of a hard manifest failure); these four are load-order +
+-- operator clarity.
+dependencies {
+    'vorp_core',
+    'vorp_inventory',
+    'sovereign_notify',
+    'sovereign_menus',
+}
