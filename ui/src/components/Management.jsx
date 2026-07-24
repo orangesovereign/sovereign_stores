@@ -53,6 +53,10 @@ export default function Management({ initial }) {
     unknown_weapon: "That weapon isn't in the county catalog.",
     bad_model: "That cashier isn't on the approved list.",
     not_in_storage: "The back room doesn't hold that many.",
+    bad_qty: 'The quantity must be a whole number of at least 1.',
+    bad_price: 'The price must be a plain number — no $ signs.',
+    bad_input: 'Quantity and price must both be plain numbers.',
+    bad_sale: 'Sale needs a percent (1-90) and minutes (at least 1).',
     not_on_shelf: "The shelf doesn't hold that many.",
     cant_carry: "You can't carry that much.",
     not_carried: "You aren't carrying that.",
@@ -204,7 +208,7 @@ function StockView({ data, act, me, isBoss }) {
   const canPrice = isBoss || hasPerm(me.permissions, 8)
   const canStock = isBoss || hasPerm(me.permissions, 1)
   const [depositing, setDepositing] = useState(false)
-  const [listing, setListing] = useState(false)
+  const [listing, setListing] = useState(null)   // {} = open, { preselect } = row shortcut
   const wlabel = (item) => (data.weaponCatalog || []).find((w) => w.name === item)?.label || item
   return (
     <div className="cols2">
@@ -213,7 +217,7 @@ function StockView({ data, act, me, isBoss }) {
           <div><span className="sheetcard__eyebrow">What buyers see</span>
             <h2 className="sheetcard__title">Shelves</h2></div>
           {canStock && (
-            <button className="ghost" onClick={() => setListing(true)}>List Product</button>
+            <button className="ghost" onClick={() => setListing({})}>List Product</button>
           )}
         </div>
         {data.stock.length === 0 ? <div className="empty">Nothing shelved — stock the shelves from the back room.</div> : (
@@ -229,16 +233,13 @@ function StockView({ data, act, me, isBoss }) {
                   <td className="dim">{r.sale_percent ? r.sale_percent + '%' : '—'}</td>
                   <td>
                     <div className="actions actions--tight">
-                      {canPrice && <AskInline label="Price" placeholder="$"
+                      {canPrice && <AskInline label="Price" placeholder="$" numeric
                         onSubmit={(v) => act('set_price', { item: r.item, price: v }, 'Price set.')} />}
                       {canPrice && (r.sale_percent
                         ? <button onClick={() => act('clear_sale', { item: r.item }, 'Sale ended.')}>End sale</button>
-                        : <AskInline label="Sale" placeholder="% off, minutes (e.g. 20,120)"
-                            onSubmit={(v) => {
-                              const [pct, min] = v.split(',').map((x) => x.trim())
-                              act('set_sale', { item: r.item, percent: pct, minutes: min }, 'Sale started.')
-                            }} />)}
-                      <AskInline label="Unshelve" placeholder="qty"
+                        : <TwoAsk label="Sale" aPlaceholder="% off" bPlaceholder="minutes"
+                            onSubmit={(pct, min) => act('set_sale', { item: r.item, percent: pct, minutes: min }, 'Sale started.')} />)}
+                      <AskInline label="Unshelve" placeholder="qty" numeric
                         onSubmit={(v) => act('unshelve', { item: r.item, qty: v }, 'Moved to the back room.')} />
                     </div>
                   </td>
@@ -268,12 +269,8 @@ function StockView({ data, act, me, isBoss }) {
                   <td className="dim">{r.amount}</td>
                   <td>
                     <div className="actions actions--tight">
-                      <AskInline label="Shelve" placeholder="qty, price (e.g. 5, 1.25)"
-                        onSubmit={(v) => {
-                          const [qty, price] = v.split(',').map((x) => x.trim())
-                          act('shelve', { item: r.name, qty, price }, 'Shelved.')
-                        }} />
-                      <AskInline label="Take" placeholder="qty"
+                      {canStock && <button onClick={() => setListing({ preselect: r })}>Shelve…</button>}
+                      <AskInline label="Take" placeholder="qty" numeric
                         onSubmit={(v) => act('storage_take', { item: r.name, qty: v }, 'In your satchel.')} />
                     </div>
                   </td>
@@ -291,9 +288,10 @@ function StockView({ data, act, me, isBoss }) {
       {listing && (
         <ProductPicker storage={data.storage || []} catalog={data.weaponCatalog || []}
           isGunStore={data.store.category === 'weapons'} hasCode={!!data.store.code}
-          onClose={() => setListing(false)}
-          onShelve={(item, qty, price) => { setListing(false); act('shelve', { item, qty, price }, 'Shelved.') }}
-          onListWeapon={(weapon, qty, price) => { setListing(false); act('list_weapon', { weapon, qty, price }, 'On the gun counter.') }} />
+          initial={listing.preselect}
+          onClose={() => setListing(null)}
+          onShelve={(item, qty, price) => { setListing(null); act('shelve', { item, qty, price }, 'Shelved.') }}
+          onListWeapon={(weapon, qty, price) => { setListing(null); act('list_weapon', { weapon, qty, price }, 'On the gun counter.') }} />
       )}
     </div>
   )
@@ -303,17 +301,21 @@ function StockView({ data, act, me, isBoss }) {
    determined by its charter category. Every store lists from its back
    room; ONLY a weapons-category store also sees the county gun catalog
    (virtual listings, serial-stamped at sale — docs/05). */
-function ProductPicker({ storage, catalog, isGunStore, hasCode, onClose, onShelve, onListWeapon }) {
-  const [picked, setPicked] = useState(null)   // { kind, name, label, max?, base? }
-  const [qty, setQty] = useState(1)
+function ProductPicker({ storage, catalog, isGunStore, hasCode, initial, onClose, onShelve, onListWeapon }) {
+  // initial = a back-room row when opened from its Shelve… button
+  const [picked, setPicked] = useState(() => initial
+    ? { kind: 'storage', name: initial.name, label: initial.label || initial.name, max: initial.amount }
+    : null)
+  const [qty, setQty] = useState(initial ? initial.amount : 1)
   const [price, setPrice] = useState('')
 
   const pickStorage = (r) => { setPicked({ kind: 'storage', name: r.name, label: r.label || r.name, max: r.amount }); setQty(r.amount); setPrice('') }
   const pickWeapon = (w) => { setPicked({ kind: 'weapon', name: w.name, label: w.label, max: 99 }); setQty(1); setPrice(String(w.base)) }
 
   const cappedQty = Math.min(qty, picked?.max || 1)
+  const priceOk = price.trim() !== '' && !isNaN(Number(price))
   const go = () => {
-    if (price.trim() === '' || isNaN(Number(price))) return
+    if (!priceOk) return
     if (picked.kind === 'storage') onShelve(picked.name, cappedQty, price)
     else onListWeapon(picked.name, cappedQty, price)
   }
@@ -372,8 +374,9 @@ function ProductPicker({ storage, catalog, isGunStore, hasCode, onClose, onShelv
               <button onClick={() => setQty(Math.min(picked.max, cappedQty + 1))}>+</button>
             </span>
             <input className="search" style={{ width: 90 }} value={price}
-              onChange={(e) => setPrice(e.target.value)} placeholder="$ each" />
-            <button className="primary" onClick={go}>List {cappedQty}</button>
+              onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="$ each"
+              onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
+            <button className="primary" disabled={!priceOk} onClick={go}>List {cappedQty}</button>
           </div>
         )}
         <div className="modal__foot">
@@ -529,9 +532,9 @@ function LedgersView({ data, act, me, isBoss }) {
           <div><span className="sheetcard__eyebrow">{fmtMoney(data.store.balances.operating)}</span>
             <h2 className="sheetcard__title">Operating Ledger</h2></div>
           <div className="actions actions--tight">
-            {canDeposit && <AskInline label="Deposit" placeholder="$"
+            {canDeposit && <AskInline label="Deposit" placeholder="$" numeric
               onSubmit={(v) => act('deposit', { account: 'operating', amount: v }, 'Deposited.')} />}
-            {canWithdraw && <AskInline label="Withdraw" placeholder="$"
+            {canWithdraw && <AskInline label="Withdraw" placeholder="$" numeric
               onSubmit={(v) => act('withdraw', { amount: v }, 'Withdrawn — cash in hand.')} />}
           </div>
         </div>
@@ -542,7 +545,7 @@ function LedgersView({ data, act, me, isBoss }) {
         <div className="sheetcard__bar">
           <div><span className="sheetcard__eyebrow">{fmtMoney(data.store.balances.tax)} · deposit-only</span>
             <h2 className="sheetcard__title">Tax Reserve</h2></div>
-          {canDeposit && <AskInline label="Deposit" placeholder="$"
+          {canDeposit && <AskInline label="Deposit" placeholder="$" numeric
             onSubmit={(v) => act('deposit', { account: 'tax', amount: v }, 'Set aside for the county.')} />}
         </div>
         <LedgerRows rows={data.taxLedger} />
@@ -613,7 +616,7 @@ function StorefrontView({ data, act }) {
 
 /* ── Inline editors (shared pattern; CEF has no window.prompt) ────── */
 
-function AskInline({ label, placeholder, onSubmit }) {
+function AskInline({ label, placeholder, onSubmit, numeric }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   if (!open) return <button onClick={() => { setValue(''); setOpen(true) }}>{label}…</button>
@@ -621,7 +624,33 @@ function AskInline({ label, placeholder, onSubmit }) {
   return (
     <span className="finder finder--inline">
       <input autoFocus className="search" placeholder={placeholder || ''} value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => setValue(numeric ? e.target.value.replace(/[^0-9.]/g, '') : e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
+      <button className="finder__hit" onClick={go}>Apply</button>
+      <button className="finder__cancel" onClick={() => setOpen(false)}>✕</button>
+    </span>
+  )
+}
+
+/* Two labeled numeric fields — replaces every "a, b" comma input (the
+   typed-input pattern the owner rejected; ledger II K2). */
+function TwoAsk({ label, aPlaceholder, bPlaceholder, onSubmit }) {
+  const [open, setOpen] = useState(false)
+  const [a, setA] = useState('')
+  const [b, setB] = useState('')
+  if (!open) return <button onClick={() => { setA(''); setB(''); setOpen(true) }}>{label}…</button>
+  const go = () => {
+    if (a.trim() === '' || b.trim() === '') return
+    setOpen(false)
+    onSubmit(a.trim(), b.trim())
+  }
+  return (
+    <span className="finder finder--inline">
+      <input autoFocus className="search" style={{ width: 74 }} placeholder={aPlaceholder} value={a}
+        onChange={(e) => setA(e.target.value.replace(/[^0-9.]/g, ''))}
+        onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
+      <input className="search" style={{ width: 74 }} placeholder={bPlaceholder} value={b}
+        onChange={(e) => setB(e.target.value.replace(/[^0-9.]/g, ''))}
         onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
       <button className="finder__hit" onClick={go}>Apply</button>
       <button className="finder__cancel" onClick={() => setOpen(false)}>✕</button>

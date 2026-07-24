@@ -41,7 +41,8 @@ function Stock.shelve(storeId, item, qty, price, category)
     if isWeapon(item) then return false, 'use_weapon_listing' end
     qty = math.floor(tonumber(qty) or 0)
     price = Util.round2(tonumber(price) or -1)
-    if qty < 1 or price < 0 then return false, 'bad_input' end
+    if qty < 1 then return false, 'bad_qty' end
+    if price < 0 then return false, 'bad_price' end
 
     local have = Bridge.storage.count(storeId, item)
     if have < qty then return false, 'not_in_storage' end
@@ -64,7 +65,8 @@ function Stock.listWeapon(storeId, item, qty, price)
     if not def then return false, 'unknown_weapon' end
     qty = math.floor(tonumber(qty) or 0)
     price = Util.round2(tonumber(price) or -1)
-    if qty < 1 or qty > 99 or price < 0 then return false, 'bad_input' end
+    if qty < 1 or qty > 99 then return false, 'bad_qty' end
+    if price < 0 then return false, 'bad_price' end
     local existing = row(storeId, item)
     if existing then
         Db.execute('UPDATE sovereign_store_stock SET quantity = quantity + ?, price = ? WHERE id = ?',
