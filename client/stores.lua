@@ -74,9 +74,18 @@ local function spawnPed(p)
         Util.warn(('ped model %s never loaded'):format(p.npcModel))
         return nil
     end
-    -- exact configured height — RDR3 peds spawn at foot level (an offset here
-    -- sinks them into the floor and freezes them kneeling; ledger Phase 1 X1)
-    local ped = CreatePed(model, p.coords.x, p.coords.y, p.coords.z, p.heading, false, false, false, false)
+    -- Ground-snap before freezing. Chartered stores capture the admin's
+    -- GetEntityCoords (≈1m above the floor), so without this the cashier
+    -- floats (owner report 2026-07-24); config coords pass through ≈unchanged.
+    -- Query from +2.0, the pattern proven in coal_stables. Falls back to the
+    -- configured Z if collision isn't streamed yet.
+    local z = p.coords.z
+    for _ = 1, 5 do
+        local found, groundZ = GetGroundZAndNormalFor_3dCoord(p.coords.x, p.coords.y, p.coords.z + 2.0)
+        if found and groundZ then z = groundZ break end
+        Wait(100)
+    end
+    local ped = CreatePed(model, p.coords.x, p.coords.y, z, p.heading, false, false, false, false)
     Citizen.InvokeNative(0x283978A15512B2FE, ped, true) -- SetRandomOutfitVariation
     SetEntityCanBeDamaged(ped, false)
     SetEntityInvincible(ped, true)
