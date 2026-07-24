@@ -208,3 +208,66 @@
 .modal__foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .modal__foot > button:not(.primary) { color: var(--sv-muted); padding: 10px 14px; border: 1px solid transparent; }
 .modal__foot > button:not(.primary):hover { color: var(--sv-ivory); }
+
+/* ── Management additions ───────────────────────────────────────── */
+.deck__headside { display: flex; align-items: center; gap: 14px; }
+.primary--go { background: #4c5a36; border-color: var(--sv-sage); }
+.primary--go:hover:not(:disabled) { background: #5a6b40; }
+
+.bars { display: flex; align-items: flex-end; gap: 14px; height: 150px; padding: 8px 6px 0; }
+.bars__col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.bars__bar {
+  width: 60%; max-width: 44px;
+  background: linear-gradient(180deg, var(--sv-brass-light), var(--sv-red-dark));
+  border-top: 1px solid var(--sv-gold);
+}
+.bars__day { font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.08em; color: var(--sv-faint); text-transform: uppercase; }
+.bars__foot { display: flex; justify-content: space-between; gap: 12px; padding: 14px 6px 2px; }
+.bars__foot b { display: block; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--sv-ivory); }
+
+.actions--tight { gap: 5px; }
+.actions--tight > button, .actions--tight .finder > button { padding: 5px 9px; font-size: 12.5px; }
+
+.finder--inline { display: inline-flex; }
+.finder--inline .search { min-width: 150px; padding: 5px 9px; font-size: 13.5px; }
+
+.sheetcard__afterbar { padding-top: 12px; border-top: var(--sv-hairline-soft); margin-top: 10px; }
+
+.hirecard {
+  background: var(--sv-raised);
+  border: var(--sv-hairline-soft);
+  padding: 12px 14px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  font-size: 14.5px;
+}
+.hirecard__perms { display: flex; flex-wrap: wrap; gap: 12px; }
+.hirecard__pay { display: flex; gap: 8px; align-items: center; }
+.hirecard__pay select, .hirecard__pay input {
+  background: var(--sv-well); border: var(--sv-hairline-soft);
+  color: var(--sv-ivory); font-family: var(--sv-body); font-size: 14px;
+  padding: 7px 10px; width: 110px;
+}
+
+.permcheck { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--sv-muted); cursor: pointer; }
+.permcheck input { width: 14px; height: 14px; accent-color: #8a5c2e; }
+.permcheck--sm { font-size: 12px; gap: 4px; margin-right: 8px; }
+.permrow { display: flex; flex-wrap: wrap; }
+.mgmt__hint { font-size: 13.5px; color: var(--sv-muted); font-style: italic; padding-top: 12px; }
+
+/* ── Closed storefront ──────────────────────────────────────────── */
+.panel--closed { align-items: center; justify-content: center; display: flex; }
+.closedcard {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 40px 60px;
+}
+.closedcard .closebtn { position: absolute; top: 14px; right: 14px; }
+.closedcard__notice {
+  font-family: var(--sv-label); font-size: 15px; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--sv-danger);
+  border: 1px solid var(--sv-danger);
+  padding: 6px 18px 6px 22px;
+  margin-top: 8px;
+}
+.closedcard__msg { font-style: italic; color: var(--sv-muted); font-size: 16px; max-width: 420px; }
+.foot--closed { position: absolute; bottom: 0; left: 0; right: 0; border-top: none; }

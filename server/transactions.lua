@@ -87,18 +87,62 @@ local function storePayload(src, store)
         store = {
             key = store.key, label = store.label, category = store.category,
             est = store.est, tagline = store.tagline, notice = store.notice,
-            code = store.code,          -- player stores (Phase 2); nil for NPC
+            code = store.code, playerStore = store.playerStore,
+            closed = store.closed or false, closedMessage = store.closedMessage,
             categories = store.categories,
-            buy = store.buy,
-            sell = buildSellView(src, store),
+            buy = store.closed and {} or store.buy,
+            sell = store.closed and {} or buildSellView(src, store),
         },
         money = Bridge.money.get(src),
+    }
+end
+
+-- ── Player-store resolution ─────────────────────────────────────────
+-- Player stores trade under the key 'p:<id>' through the same engine.
+
+local function playerStoreNear(src, s)
+    local rc = s.register_coords
+    if not rc then return false end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return false end
+    local p = GetEntityCoords(ped)
+    local maxD = Config.ServerTradeDistance or 12.0
+    local dx, dy, dz = p.x - rc.x, p.y - rc.y, p.z - rc.z
+    return (dx * dx + dy * dy + dz * dz) <= (maxD * maxD)
+end
+
+local function playerStoreView(s)
+    local catalog = Stock.catalog(s.id)
+    local cats, seen = {}, {}
+    for _, e in ipairs(catalog) do
+        if not seen[e.category] then
+            seen[e.category] = true
+            cats[#cats + 1] = { key = e.category, label = (e.category:gsub('^%l', string.upper)) }
+        end
+    end
+    return {
+        key = 'p:' .. s.id, id = s.id, playerStore = true,
+        label = s.name, code = s.code, category = s.category,
+        tagline = s.branding and s.branding.tagline or nil,
+        est = 'SOVEREIGN COUNTY CHARTER' .. (s.code and (' · ' .. s.code) or ''),
+        categories = #cats > 0 and cats or { { key = 'general', label = 'Goods' } },
+        buy = catalog,
+        sell = {},   -- buy orders arrive in Phase 4
+        closed = s.status ~= 'open',
+        closedMessage = (s.branding and s.branding.closed_message) or nil,
     }
 end
 
 -- ── Guards ──────────────────────────────────────────────────────────
 
 local function guard(src, storeKey)
+    local pid = tostring(storeKey):match('^p:(%d+)$')
+    if pid then
+        local s = PStores.get(tonumber(pid))
+        if not s or s.status == 'repossessed' then return nil, 'unknown_store' end
+        if not playerStoreNear(src, s) then return nil, 'too_far' end
+        return playerStoreView(s), nil, s
+    end
     local store = Npc.get(storeKey)
     if not store then return nil, 'unknown_store' end
     if not Npc.playerNear(src, storeKey) then return nil, 'too_far' end
@@ -109,8 +153,9 @@ end
 -- ── Checkout (buy) — all-or-nothing ─────────────────────────────────
 
 local function checkout(src, storeKey, cart)
-    local store, err = guard(src, storeKey)
+    local store, err, pstore = guard(src, storeKey)
     if not store then return { ok = false, error = err } end
+    if store.closed then return { ok = false, error = 'closed' } end
     if type(cart) ~= 'table' or #cart == 0 then return { ok = false, error = 'empty_cart' } end
 
     -- resolve + price every line server-side
@@ -120,6 +165,9 @@ local function checkout(src, storeKey, cart)
         local entry = findBuyEntry(store, tostring(raw.item))
         if not entry or qty < 1 or qty > MAX_LINE_QTY then
             return { ok = false, error = 'bad_line' }
+        end
+        if pstore and (entry.stock or 0) < qty then
+            return { ok = false, error = 'out_of_stock', item = entry.label }
         end
         local unit = unitPrice(entry)
         lines[#lines + 1] = { entry = entry, qty = qty, cost = Util.round2(unit * qty) }
@@ -148,12 +196,18 @@ local function checkout(src, storeKey, cart)
     local delivered = 0
     for _, line in ipairs(lines) do
         local okLine = true
-        if line.entry.weapon then
-            for _ = 1, line.qty do
-                if not Bridge.weapons.createStamped(src, line.entry.item, nil, nil, nil) then okLine = false end
+        if pstore then
+            -- shelf is authoritative: claim stock BEFORE handing goods over
+            if not Stock.take(pstore.id, line.entry.item, line.qty) then okLine = false end
+        end
+        if okLine then
+            if line.entry.weapon then
+                for _ = 1, line.qty do
+                    if not Bridge.weapons.createStamped(src, line.entry.item, nil, nil, nil) then okLine = false end
+                end
+            else
+                okLine = Bridge.inv.add(src, line.entry.item, line.qty)
             end
-        else
-            okLine = Bridge.inv.add(src, line.entry.item, line.qty)
         end
         if okLine then
             delivered = Util.round2(delivered + line.cost)
@@ -165,7 +219,13 @@ local function checkout(src, storeKey, cart)
     end
 
     if delivered > 0 then
-        Fund.credit('npc_sale', delivered, nil, store.key)
+        if pstore then
+            Ledger.write(pstore.id, 'operating', 'sale', delivered, {
+                actor = Bridge.getCharId(src), note = ('%d line(s)'):format(#lines),
+            })
+        else
+            Fund.credit('npc_sale', delivered, nil, store.key)
+        end
         TriggerEvent('sovereign_stores:itemPurchased', { src = src, store = store.key, total = delivered })
         Bridge.notify(src, _U('bought_total', delivered))
     end
@@ -225,6 +285,7 @@ end
 local function sellToStore(src, storeKey, entries)
     local store, err = guard(src, storeKey)
     if not store then return { ok = false, error = err } end
+    if store.closed or store.playerStore then return { ok = false, error = 'closed' } end
     if type(entries) ~= 'table' or #entries == 0 then return { ok = false, error = 'empty' } end
 
     local total, sold = 0, 0

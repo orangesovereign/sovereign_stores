@@ -117,6 +117,22 @@ export default function Storefront({ view, setView }) {
   const cats = [{ key: 'all', label: 'All Goods' }, ...store.categories]
   const sellCount = store.sell.length
 
+  if (store.closed) {
+    return (
+      <div className="panel panel--closed">
+        <div className="closedcard">
+          <div className="monogram"><span>{(store.label || '?').slice(0, 1)}</span></div>
+          <div className="masthead__est">{store.est || '~ SOVEREIGN COUNTY ~'}</div>
+          <h1 className="masthead__name">{store.label}</h1>
+          <div className="closedcard__notice">CLOSED</div>
+          <p className="closedcard__msg">{store.closedMessage || 'The counter is dark. Come back when the sign turns.'}</p>
+          <button className="closebtn" onClick={() => post('close')} aria-label="Close">✕</button>
+          <footer className="foot foot--closed"><span /><span className="foot__esc"><i>ESC</i> Close</span></footer>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="panel">
       <header className="masthead">

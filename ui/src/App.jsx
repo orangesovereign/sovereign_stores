@@ -9,29 +9,35 @@ import { useEffect, useState } from 'react'
 import { post, onMessage } from './nui.js'
 import Storefront from './components/Storefront.jsx'
 import Bureau from './components/Bureau.jsx'
+import Management from './components/Management.jsx'
 
 export default function App() {
   const [storeView, setStoreView] = useState(null)   // { store, money }
-  const [adminView, setAdminView] = useState(null)   // overview payload
+  const [adminView, setAdminView] = useState(null)   // Bureau overview payload
+  const [mgmtView, setMgmtView] = useState(null)     // Management payload
 
   useEffect(() => onMessage((msg) => {
     if (msg.action === 'store:open') setStoreView({ store: msg.payload.store, money: msg.payload.money })
     if (msg.action === 'store:close') setStoreView(null)
     if (msg.action === 'admin:open') setAdminView(msg.payload)
     if (msg.action === 'admin:close') setAdminView(null)
+    if (msg.action === 'mgmt:open') setMgmtView(msg.payload)
+    if (msg.action === 'mgmt:close') setMgmtView(null)
   }), [])
 
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       if (adminView) post('adminClose')
+      else if (mgmtView) post('mgmtClose')
       else if (storeView) post('close')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [adminView, storeView])
+  }, [adminView, mgmtView, storeView])
 
   if (adminView) return <div className="scrim"><Bureau initial={adminView} /></div>
+  if (mgmtView) return <div className="scrim"><Management initial={mgmtView} /></div>
   if (storeView) return <div className="scrim"><Storefront view={storeView} setView={setStoreView} /></div>
   return null
 }

@@ -13,6 +13,11 @@ PStores = {}
 local cache = {}    -- [id] = store row (decoded)
 local roster = {}   -- [id] = { {charid, permissions, pay_model, pay_rate, hired_at}, ... }
 
+-- placements refresh (blips appear/disappear with status, names update live)
+local function republish()
+    if Npc and Npc.publishAll then Npc.publishAll() end
+end
+
 -- ── Load / cache ────────────────────────────────────────────────────
 
 local function decode(row)
@@ -33,6 +38,7 @@ function PStores.loadAll()
         Bridge.storage.register(row.id, row.name .. ' — Back Room', Config.StorageSlots)
     end
     local n = 0 for _ in pairs(cache) do n = n + 1 end
+    republish()
     Util.ok(('player stores loaded: %d'):format(n))
     return n
 end
@@ -89,6 +95,7 @@ function PStores.create(data, actorCharid)
     roster[id] = {}
     Bridge.storage.register(id, data.name .. ' — Back Room', Config.StorageSlots)
     EventLog.write(id, 'assigned', actorCharid, nil, { created = true, name = data.name })
+    republish()
     return id
 end
 
@@ -160,6 +167,7 @@ function PStores.repossess(id, reason, actorCharid)
     s.owner_charid, s.coowner_charid, s.status, s.tax_state = nil, nil, 'repossessed', 'current'
     EventLog.write(s.id, 'repossessed', actorCharid, nil, { reason = reason, swept = swept })
     TriggerEvent('sovereign_stores:repossessed', { store = s.id, reason = reason, swept = swept })
+    republish()
     return true, swept
 end
 
@@ -250,6 +258,7 @@ function PStores.setStatus(id, open, actorCharid)
     s.status = status
     EventLog.write(s.id, open and 'open' or 'close', actorCharid, nil, {})
     TriggerEvent(open and 'sovereign_stores:storeOpened' or 'sovereign_stores:storeClosed', { store = s.id })
+    republish()
     return true
 end
 
@@ -277,6 +286,7 @@ function PStores.rename(id, name, actorCharid)
     Db.execute('UPDATE sovereign_stores SET name = ? WHERE id = ?', { name, s.id })
     s.name = name
     EventLog.write(s.id, 'branding', actorCharid, nil, { name = name })
+    republish()
     return true
 end
 

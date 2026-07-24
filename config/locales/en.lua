@@ -26,4 +26,6 @@ Locales['en'] = {
     store_err_job_locked    = 'This store doesn\'t serve your line of work.',
     store_err_unknown       = 'The clerk seems distracted — try again.',
     store_err_no_response   = 'The clerk seems distracted — try again.',
+    store_err_closed        = 'That store is closed right now.',
+    err_not_staff           = 'You don\'t work at any store in the county.',
 }

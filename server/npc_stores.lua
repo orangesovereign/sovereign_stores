@@ -122,9 +122,35 @@ function Npc.init()
         end
     end
 
-    GlobalState['sovereign_stores:placements'] = Npc.placements
+    Npc.publishAll()
     Util.ok(('NPC stores ready: %d types, %d placements'):format(types, spots))
     return types, spots
+end
+
+---Merge NPC placements with player-store counters and publish to every
+---client. Player stores: blip only while open (default hidden closed,
+---design D7); cashier ped always present until the Phase 3 clock system
+---swaps in real staff.
+function Npc.publishAll()
+    local merged = {}
+    for _, p in ipairs(Npc.placements) do merged[#merged + 1] = p end
+    if PStores and PStores.all then
+        for id, s in pairs(PStores.all()) do
+            local rc = s.register_coords
+            if rc and s.status ~= 'repossessed' then
+                merged[#merged + 1] = {
+                    store    = 'p:' .. id,
+                    idx      = 1,
+                    label    = s.name,
+                    coords   = { x = rc.x, y = rc.y, z = rc.z },
+                    heading  = rc.h or 0.0,
+                    npcModel = s.npc_model or 'U_M_M_NbxGeneralStoreOwner_01',
+                    blip     = (s.status == 'open') and { sprite = 1475879922, label = s.name } or nil,
+                }
+            end
+        end
+    end
+    GlobalState['sovereign_stores:placements'] = merged
 end
 
 function Npc.get(key)
