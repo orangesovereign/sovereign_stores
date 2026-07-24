@@ -48,6 +48,7 @@ export default function Management({ initial }) {
 
   const ERRS = {
     no_code: 'The Bureau must stamp a store code before guns can be sold here.',
+    not_gunsmith: 'This store isn\'t licensed for firearms — only a Gunsmith/Weapons charter runs a gun counter.',
     use_weapon_listing: 'Weapons go on the gun counter — use List Weapon.',
     unknown_weapon: "That weapon isn't in the county catalog.",
     bad_model: "That cashier isn't on the approved list.",
@@ -212,7 +213,7 @@ function StockView({ data, act, me, isBoss }) {
           <div><span className="sheetcard__eyebrow">What buyers see</span>
             <h2 className="sheetcard__title">Shelves</h2></div>
           {canStock && (
-            <button className="ghost" onClick={() => setListing(true)}>List Weapon</button>
+            <button className="ghost" onClick={() => setListing(true)}>List Product</button>
           )}
         </div>
         {data.stock.length === 0 ? <div className="empty">Nothing shelved — stock the shelves from the back room.</div> : (
@@ -288,57 +289,91 @@ function StockView({ data, act, me, isBoss }) {
           onDeposit={(item, qty) => { setDepositing(false); act('storage_deposit', { item, qty }, 'Deposited.') }} />
       )}
       {listing && (
-        <WeaponPicker catalog={data.weaponCatalog || []} hasCode={!!data.store.code}
+        <ProductPicker storage={data.storage || []} catalog={data.weaponCatalog || []}
+          isGunStore={data.store.category === 'weapons'} hasCode={!!data.store.code}
           onClose={() => setListing(false)}
-          onList={(weapon, qty, price) => { setListing(false); act('list_weapon', { weapon, qty, price }, 'On the gun counter.') }} />
+          onShelve={(item, qty, price) => { setListing(false); act('shelve', { item, qty, price }, 'Shelved.') }}
+          onListWeapon={(weapon, qty, price) => { setListing(false); act('list_weapon', { weapon, qty, price }, 'On the gun counter.') }} />
       )}
     </div>
   )
 }
 
-/* Gun counter listing: weapons are sold NEW from the county catalog and
-   serial-stamped at sale — no physical storage involved (docs/05). */
-function WeaponPicker({ catalog, hasCode, onClose, onList }) {
-  const [picked, setPicked] = useState(null)   // { name, label, base }
+/* List Product (owner ruling 2026-07-24): what a store can shelve is
+   determined by its charter category. Every store lists from its back
+   room; ONLY a weapons-category store also sees the county gun catalog
+   (virtual listings, serial-stamped at sale — docs/05). */
+function ProductPicker({ storage, catalog, isGunStore, hasCode, onClose, onShelve, onListWeapon }) {
+  const [picked, setPicked] = useState(null)   // { kind, name, label, max?, base? }
   const [qty, setQty] = useState(1)
   const [price, setPrice] = useState('')
 
-  const pick = (w) => { setPicked(w); setQty(1); setPrice(String(w.base)) }
+  const pickStorage = (r) => { setPicked({ kind: 'storage', name: r.name, label: r.label || r.name, max: r.amount }); setQty(r.amount); setPrice('') }
+  const pickWeapon = (w) => { setPicked({ kind: 'weapon', name: w.name, label: w.label, max: 99 }); setQty(1); setPrice(String(w.base)) }
+
+  const cappedQty = Math.min(qty, picked?.max || 1)
+  const go = () => {
+    if (price.trim() === '' || isNaN(Number(price))) return
+    if (picked.kind === 'storage') onShelve(picked.name, cappedQty, price)
+    else onListWeapon(picked.name, cappedQty, price)
+  }
 
   return (
     <div className="modal__scrim" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__eyebrow">Gun Counter · New Listing</div>
-        <h2 className="modal__title">County Weapon Catalog</h2>
-        {!hasCode && (
-          <div className="toast toast--bad" style={{ margin: '12px 0 0' }}>
-            The Bureau must stamp a store code before guns can be sold here — every piece
-            carries a serial with your mark.
+        <div className="modal__eyebrow">Shelves · New Listing</div>
+        <h2 className="modal__title">List Product</h2>
+
+        <div className="picker__section">From the back room</div>
+        {storage.length === 0 ? (
+          <div className="empty">The back room is empty — deposit goods from your satchel first.</div>
+        ) : (
+          <div className="satchel">
+            {storage.map((r, i) => (
+              <button key={r.name + ':' + i}
+                className={'satchel__slot' + (picked?.kind === 'storage' && picked.name === r.name ? ' on' : '')}
+                onClick={() => pickStorage(r)}>
+                <ItemArt item={r.name} label={r.label || r.name} size="sm" />
+                <span className="satchel__label">{r.label || r.name}</span>
+                <span className="satchel__count">×{r.amount}</span>
+              </button>
+            ))}
           </div>
         )}
-        <div className="satchel">
-          {catalog.map((w) => (
-            <button key={w.name}
-              className={'satchel__slot' + (picked?.name === w.name ? ' on' : '')}
-              onClick={() => pick(w)}>
-              <span className="satchel__label">{w.label}</span>
-              <span className="satchel__count">{'$' + Number(w.base).toFixed(2)}</span>
-            </button>
-          ))}
-        </div>
-        {picked && hasCode && (
+
+        {isGunStore && (
+          <>
+            <div className="picker__section">County weapon catalog — sold new, serial-stamped</div>
+            {!hasCode && (
+              <div className="toast toast--bad" style={{ margin: '8px 0 0' }}>
+                The Bureau must stamp a store code before guns can be sold — every piece
+                carries a serial with your mark.
+              </div>
+            )}
+            <div className="satchel">
+              {catalog.map((w) => (
+                <button key={w.name} disabled={!hasCode}
+                  className={'satchel__slot' + (picked?.kind === 'weapon' && picked.name === w.name ? ' on' : '')}
+                  onClick={() => pickWeapon(w)}>
+                  <span className="satchel__label">{w.label}</span>
+                  <span className="satchel__count">{'$' + Number(w.base).toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {picked && (
           <div className="satchel__confirm">
             <span>List <b>{picked.label}</b></span>
             <span className="stepper">
-              <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-              <b>{qty}</b>
-              <button onClick={() => setQty(Math.min(99, qty + 1))}>+</button>
+              <button onClick={() => setQty(Math.max(1, cappedQty - 1))}>−</button>
+              <b>{cappedQty}</b>
+              <button onClick={() => setQty(Math.min(picked.max, cappedQty + 1))}>+</button>
             </span>
             <input className="search" style={{ width: 90 }} value={price}
               onChange={(e) => setPrice(e.target.value)} placeholder="$ each" />
-            <button className="primary" onClick={() => onList(picked.name, qty, price)}>
-              List {qty}
-            </button>
+            <button className="primary" onClick={go}>List {cappedQty}</button>
           </div>
         )}
         <div className="modal__foot">

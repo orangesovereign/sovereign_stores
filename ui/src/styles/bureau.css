@@ -320,3 +320,10 @@
   padding: 8px 14px;
 }
 .ghost:hover { background: rgba(138, 92, 46, 0.15); color: var(--sv-ivory); }
+.picker__section {
+  font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--sv-faint);
+  margin-top: 16px; padding-bottom: 2px;
+  border-bottom: 1px solid rgba(138, 92, 46, 0.18);
+}
+.satchel__slot:disabled { opacity: 0.45; cursor: default; }

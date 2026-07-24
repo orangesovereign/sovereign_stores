@@ -182,6 +182,8 @@ ACTIONS.clear_sale = function(s, src, charid, p)
 end
 ACTIONS.list_weapon = function(s, src, charid, p)
     if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    -- only weapons-category stores run a gun counter (owner ruling 2026-07-24)
+    if s.category ~= 'weapons' then return false, 'not_gunsmith' end
     -- serials carry the store code — no code, no gun counter
     if not s.code then return false, 'no_code' end
     return Stock.listWeapon(s.id, tostring(p.weapon), p.qty, p.price)
