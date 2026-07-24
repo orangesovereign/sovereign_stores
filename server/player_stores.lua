@@ -163,6 +163,17 @@ function PStores.repossess(id, reason, actorCharid)
     return true, swept
 end
 
+---Admin override for approved absences (H6). untilDate 'YYYY-MM-DD' or nil to clear.
+function PStores.setInactivityExempt(id, untilDate, actorCharid)
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown' end
+    if untilDate and not tostring(untilDate):match('^%d%d%d%d%-%d%d%-%d%d$') then return false, 'bad_date' end
+    Db.execute('UPDATE sovereign_stores SET inactivity_exempt_until = ? WHERE id = ?', { untilDate, s.id })
+    s.inactivity_exempt_until = untilDate
+    EventLog.write(s.id, 'adjustment', actorCharid, nil, { inactivity_exempt_until = untilDate })
+    return true
+end
+
 -- ── Owner / co-owner operations (Management panel) ──────────────────
 
 function PStores.setCoOwner(id, charid, actorCharid)
