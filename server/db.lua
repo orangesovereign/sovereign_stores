@@ -18,6 +18,7 @@ local REQUIRED_TABLES <const> = {
     'sovereign_store_timeclock',
     'sovereign_store_notes',
     'sovereign_store_letters',
+    'sovereign_store_events',
     'sovereign_weapon_serials',
     'sovereign_government_fund',
 }
@@ -49,6 +50,14 @@ function Db.insert(sql, params)
     local ok, res = pcall(function() return MySQL.insert.await(sql, params or {}) end)
     if not ok then Util.err('Db.insert failed: ' .. tostring(res) .. ' — ' .. sql) return nil end
     return res
+end
+
+-- Insert where failure is an expected outcome (unique-constraint retry
+-- loops, e.g. weapon serials): no error spam, returns ok, result/err.
+function Db.tryInsert(sql, params)
+    local ok, res = pcall(function() return MySQL.insert.await(sql, params or {}) end)
+    if not ok then return false, res end
+    return true, res
 end
 
 -- returns array of missing table names (empty = schema green)

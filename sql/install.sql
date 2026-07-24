@@ -178,3 +178,19 @@ CREATE TABLE IF NOT EXISTS `sovereign_government_fund` (
     KEY `idx_type` (`type`),
     KEY `idx_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Non-money event log (feature I1): hires, fires, permission changes,
+-- branding edits, admin actions, repossessions. Money stays in
+-- sovereign_store_ledger; webhooks mirror this, never replace it.
+CREATE TABLE IF NOT EXISTS `sovereign_store_events` (
+    `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `store_id`      INT UNSIGNED NULL DEFAULT NULL,      -- NULL = server-wide/admin
+    `kind`          VARCHAR(32)  NOT NULL,               -- hired|fired|perms_changed|wage_set|open|close|branding|assigned|code_set|price_set|tax_rate_set|transfer|repossessed|adjustment
+    `actor_charid`  INT          NULL DEFAULT NULL,
+    `target_charid` INT          NULL DEFAULT NULL,
+    `data`          JSON         NULL,
+    `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_store_time` (`store_id`, `created_at`),
+    KEY `idx_kind` (`kind`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

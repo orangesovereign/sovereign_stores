@@ -68,6 +68,7 @@ CreateThread(function()
     if Db.available() and #Db.verifySchema() == 0 then
         Fund.load()
         Npc.init()
+        PStores.loadAll()
     end
     local report = buildReport()
     printReport(report)

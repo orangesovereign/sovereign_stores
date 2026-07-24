@@ -16,6 +16,7 @@ shared_scripts {
     'config/locales/en.lua',
     'shared/util.lua',
     'shared/events.lua',
+    'shared/perms.lua',
     'shared/validate.lua',
     'shared/bridge.lua',
 }
@@ -24,6 +25,10 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/db.lua',
     'server/fund.lua',
+    'server/eventlog.lua',
+    'server/ledger.lua',
+    'server/serials.lua',
+    'server/player_stores.lua',
     'server/npc_stores.lua',
     'server/transactions.lua',
     'server/core.lua',
