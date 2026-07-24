@@ -43,6 +43,7 @@ const MAP = {
   provisions: IconBowl, food: IconBowl,
   supplies: IconWrench, tools: IconWrench,
   hunting: IconArrow,
+  weapons: IconArrow,
   horse: IconHorseshoe, horsecare: IconHorseshoe,
   sundries: IconCoin, valuables: IconCoin,
   drinks: IconBottle,

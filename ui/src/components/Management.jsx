@@ -46,10 +46,23 @@ export default function Management({ initial }) {
     if (res?.ok) setData(res)
   }
 
+  const ERRS = {
+    no_code: 'The Bureau must stamp a store code before guns can be sold here.',
+    use_weapon_listing: 'Weapons go on the gun counter — use List Weapon.',
+    unknown_weapon: "That weapon isn't in the county catalog.",
+    bad_model: "That cashier isn't on the approved list.",
+    not_in_storage: "The back room doesn't hold that many.",
+    not_on_shelf: "The shelf doesn't hold that many.",
+    cant_carry: "You can't carry that much.",
+    not_carried: "You aren't carrying that.",
+    insufficient: "The ledger can't cover that.",
+    no_permission: "You don't have the authority for that.",
+  }
+
   const act = async (action, payload, okMsg) => {
     const res = await post('mgmtAction', { action, payload })
     if (res?.ok) { say('good', okMsg || 'Done.'); await refresh(); return true }
-    say('bad', 'Refused: ' + (res?.error || 'no response'))
+    say('bad', ERRS[res?.error] || 'Refused: ' + (res?.error || 'no response'))
     return false
   }
 
@@ -190,18 +203,26 @@ function StockView({ data, act, me, isBoss }) {
   const canPrice = isBoss || hasPerm(me.permissions, 8)
   const canStock = isBoss || hasPerm(me.permissions, 1)
   const [depositing, setDepositing] = useState(false)
+  const [listing, setListing] = useState(false)
+  const wlabel = (item) => (data.weaponCatalog || []).find((w) => w.name === item)?.label || item
   return (
     <div className="cols2">
       <div className="sheetcard">
-        <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">What buyers see</span>
-          <h2 className="sheetcard__title">Shelves</h2></div></div>
+        <div className="sheetcard__bar">
+          <div><span className="sheetcard__eyebrow">What buyers see</span>
+            <h2 className="sheetcard__title">Shelves</h2></div>
+          {canStock && (
+            <button className="ghost" onClick={() => setListing(true)}>List Weapon</button>
+          )}
+        </div>
         {data.stock.length === 0 ? <div className="empty">Nothing shelved — stock the shelves from the back room.</div> : (
           <table className="dtable">
             <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Sale</th><th /></tr></thead>
             <tbody>
               {data.stock.map((r) => (
                 <tr key={r.item} className="norow">
-                  <td><b>{r.item}</b><span className="subline">{r.category}</span></td>
+                  <td><b>{r.item.startsWith('WEAPON_') ? wlabel(r.item) : r.item}</b>
+                    <span className="subline">{r.item.startsWith('WEAPON_') ? 'gun counter' : r.category}</span></td>
                   <td className="dim">{r.quantity}</td>
                   <td>{fmtMoney(r.price)}</td>
                   <td className="dim">{r.sale_percent ? r.sale_percent + '%' : '—'}</td>
@@ -266,6 +287,64 @@ function StockView({ data, act, me, isBoss }) {
         <SatchelPicker satchel={data.satchel || []} onClose={() => setDepositing(false)}
           onDeposit={(item, qty) => { setDepositing(false); act('storage_deposit', { item, qty }, 'Deposited.') }} />
       )}
+      {listing && (
+        <WeaponPicker catalog={data.weaponCatalog || []} hasCode={!!data.store.code}
+          onClose={() => setListing(false)}
+          onList={(weapon, qty, price) => { setListing(false); act('list_weapon', { weapon, qty, price }, 'On the gun counter.') }} />
+      )}
+    </div>
+  )
+}
+
+/* Gun counter listing: weapons are sold NEW from the county catalog and
+   serial-stamped at sale — no physical storage involved (docs/05). */
+function WeaponPicker({ catalog, hasCode, onClose, onList }) {
+  const [picked, setPicked] = useState(null)   // { name, label, base }
+  const [qty, setQty] = useState(1)
+  const [price, setPrice] = useState('')
+
+  const pick = (w) => { setPicked(w); setQty(1); setPrice(String(w.base)) }
+
+  return (
+    <div className="modal__scrim" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__eyebrow">Gun Counter · New Listing</div>
+        <h2 className="modal__title">County Weapon Catalog</h2>
+        {!hasCode && (
+          <div className="toast toast--bad" style={{ margin: '12px 0 0' }}>
+            The Bureau must stamp a store code before guns can be sold here — every piece
+            carries a serial with your mark.
+          </div>
+        )}
+        <div className="satchel">
+          {catalog.map((w) => (
+            <button key={w.name}
+              className={'satchel__slot' + (picked?.name === w.name ? ' on' : '')}
+              onClick={() => pick(w)}>
+              <span className="satchel__label">{w.label}</span>
+              <span className="satchel__count">{'$' + Number(w.base).toFixed(2)}</span>
+            </button>
+          ))}
+        </div>
+        {picked && hasCode && (
+          <div className="satchel__confirm">
+            <span>List <b>{picked.label}</b></span>
+            <span className="stepper">
+              <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
+              <b>{qty}</b>
+              <button onClick={() => setQty(Math.min(99, qty + 1))}>+</button>
+            </span>
+            <input className="search" style={{ width: 90 }} value={price}
+              onChange={(e) => setPrice(e.target.value)} placeholder="$ each" />
+            <button className="primary" onClick={() => onList(picked.name, qty, price)}>
+              List {qty}
+            </button>
+          </div>
+        )}
+        <div className="modal__foot">
+          <button onClick={onClose}>Close</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -474,6 +553,25 @@ function StorefrontView({ data, act }) {
         The map blip shows only while the store is open. Buyers see the tagline under your store
         name; the closed message greets anyone who visits outside hours.
       </p>
+
+      <div className="sheetcard__bar" style={{ marginTop: 18 }}>
+        <div><span className="sheetcard__eyebrow">Who minds the counter</span>
+          <h2 className="sheetcard__title">Cashier</h2></div>
+      </div>
+      {(data.cashierPeds || []).map((group) => (
+        <div key={group.key} className="pedgroup">
+          <div className="pedgroup__label">{group.label}</div>
+          <div className="pedgroup__row">
+            {group.peds.map((ped) => (
+              <button key={ped.model}
+                className={'pedpick' + (s.npcModel?.toLowerCase() === ped.model.toLowerCase() ? ' on' : '')}
+                onClick={() => act('set_cashier', { model: ped.model }, 'The new cashier takes the counter.')}>
+                {ped.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

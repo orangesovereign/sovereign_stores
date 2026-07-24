@@ -86,7 +86,7 @@ local function mgmtPayload(src, storeId)
         store = {
             id = s.id, code = s.code, name = s.name, category = s.category, status = s.status,
             ownerName = s.owner_charid and charName(s.owner_charid) or nil,
-            branding = s.branding,
+            branding = s.branding, npcModel = s.npc_model,
             balances = { operating = Ledger.balance(s.id, 'operating'), tax = Ledger.balance(s.id, 'tax') },
             taxRate = s.tax_rate, purchasePrice = s.purchase_price,
             taxState = s.tax_state, taxDue = s.tax_due_date,
@@ -96,6 +96,8 @@ local function mgmtPayload(src, storeId)
         stock = Stock.list(s.id),
         storage = Bridge.storage.items(s.id),
         satchel = satchelOf(src),
+        cashierPeds = Config.CashierPeds,
+        weaponCatalog = Config.WeaponCatalog,
         staff = staff,
         maxEmployees = Config.MaxEmployees,
         ledger = Ledger.history(s.id, 'operating', 20),
@@ -120,6 +122,10 @@ end
 ACTIONS.branding = function(s, src, charid, p)
     if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
     return PStores.setBranding(s.id, p or {}, charid)
+end
+ACTIONS.set_cashier = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
+    return PStores.setCashier(s.id, p.model, charid)
 end
 
 -- funds
@@ -173,6 +179,12 @@ end
 ACTIONS.clear_sale = function(s, src, charid, p)
     if not PStores.can(s.id, charid, Perms.PRICES) then return false, 'no_permission' end
     return Stock.clearSale(s.id, tostring(p.item))
+end
+ACTIONS.list_weapon = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    -- serials carry the store code — no code, no gun counter
+    if not s.code then return false, 'no_code' end
+    return Stock.listWeapon(s.id, tostring(p.weapon), p.qty, p.price)
 end
 
 -- back room ↔ player satchel (STOCK flag)

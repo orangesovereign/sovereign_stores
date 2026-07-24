@@ -463,6 +463,7 @@ function AssignStore({ onClose, onDone, say }) {
             <label>Category
               <select value={form.category} onChange={set('category')}>
                 <option value="general">General Store</option>
+                <option value="weapons">Gunsmith / Weapons</option>
                 <option value="fishing">Fishing</option>
                 <option value="pelts">Pelt Trader</option>
                 <option value="butcher">Butcher</option>

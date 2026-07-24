@@ -297,3 +297,26 @@
   font-size: 15px;
 }
 .satchel__confirm > span:first-child { flex: 1; }
+
+/* ── Cashier picker (Management · Storefront) ────────────────────── */
+.pedgroup { margin-top: 10px; }
+.pedgroup__label {
+  font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--sv-faint); margin-bottom: 6px;
+}
+.pedgroup__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pedpick {
+  padding: 8px 14px; font-size: 14px;
+  color: var(--sv-muted);
+  background: var(--sv-raised);
+  border: 1px solid rgba(138, 92, 46, 0.25);
+}
+.pedpick:hover { color: var(--sv-ivory); border-color: var(--sv-brass); }
+.pedpick.on { color: var(--sv-gold); border-color: var(--sv-gold); background: rgba(138, 92, 46, 0.14); }
+.ghost {
+  font-family: var(--sv-label); text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 12px; color: var(--sv-parchment);
+  border: 1px solid var(--sv-brass);
+  padding: 8px 14px;
+}
+.ghost:hover { background: rgba(138, 92, 46, 0.15); color: var(--sv-ivory); }

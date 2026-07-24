@@ -46,3 +46,52 @@ Config.Presence = {
     RadiusMeters = 25.0,   -- distance from register that still counts
     GraceTicks   = 2,      -- missed ticks tolerated before auto clock-out
 }
+
+-- ── Cashier peds (owner-selectable; curated, verified in
+--    _reference/rdr3_discoveries/peds/peds_list.lua — never the full zoo) ──
+Config.CashierPeds = {
+    { key = 'shopkeepers', label = 'Shopkeepers', peds = {
+        { model = 'u_m_m_valgenstoreowner_01',     label = 'Valentine Shopkeep' },
+        { model = 'u_m_m_rhdgenstoreowner_01',     label = 'Rhodes Shopkeep' },
+        { model = 'u_f_m_tumgeneralstoreowner_01', label = 'Frontier Shopkeep' },
+    } },
+    { key = 'gunsmiths', label = 'Gunsmiths', peds = {
+        { model = 'u_m_m_valgunsmith_01', label = 'Valentine Gunsmith' },
+        { model = 'u_m_m_rhdgunsmith_01', label = 'Rhodes Gunsmith' },
+        { model = 'u_m_m_nbxgunsmith_01', label = 'City Gunsmith' },
+    } },
+    { key = 'butchers', label = 'Butchers', peds = {
+        { model = 'u_m_m_valbutcher_01',  label = 'Valentine Butcher' },
+        { model = 'u_m_m_tumbutcher_01',  label = 'Tumbleweed Butcher' },
+        { model = 's_m_m_unibutchers_01', label = 'Working Butcher' },
+    } },
+    { key = 'barkeeps', label = 'Barkeeps', peds = {
+        { model = 'u_m_m_valbartender_01', label = 'Valentine Barkeep' },
+        { model = 'u_m_m_rhdbartender_01', label = 'Rhodes Barkeep' },
+        { model = 'u_f_m_vhtbartender_01', label = 'Van Horn Barmaid' },
+    } },
+    { key = 'doctors', label = 'Doctors', peds = {
+        { model = 'u_m_m_valdoctor_01', label = 'Valentine Doctor' },
+        { model = 'u_m_m_rhddoctor_01', label = 'Rhodes Doctor' },
+    } },
+    { key = 'tradesfolk', label = 'Tradesfolk', peds = {
+        { model = 's_m_m_barber_01', label = 'Barber' },
+        { model = 's_m_m_tailor_01', label = 'Tailor' },
+    } },
+}
+
+-- ── Weapon catalog (player gun counters; names verified against the
+--    deployed Cas-inventory config/weapons.lua) ─────────────────────
+Config.WeaponCatalog = {
+    { name = 'WEAPON_REVOLVER_CATTLEMAN',    label = 'Cattleman Revolver',    base = 45.00 },
+    { name = 'WEAPON_REVOLVER_DOUBLEACTION', label = 'Double-Action Revolver', base = 65.00 },
+    { name = 'WEAPON_REVOLVER_SCHOFIELD',    label = 'Schofield Revolver',    base = 84.00 },
+    { name = 'WEAPON_REPEATER_CARBINE',      label = 'Carbine Repeater',      base = 90.00 },
+    { name = 'WEAPON_REPEATER_WINCHESTER',   label = 'Lancaster Repeater',    base = 135.00 },
+    { name = 'WEAPON_RIFLE_SPRINGFIELD',     label = 'Springfield Rifle',     base = 120.00 },
+    { name = 'WEAPON_RIFLE_BOLTACTION',      label = 'Bolt-Action Rifle',     base = 180.00 },
+    { name = 'WEAPON_SHOTGUN_DOUBLEBARREL',  label = 'Double-Barrel Shotgun', base = 110.00 },
+    { name = 'WEAPON_SHOTGUN_PUMP',          label = 'Pump-Action Shotgun',   base = 148.00 },
+    { name = 'WEAPON_BOW',                   label = 'Hunting Bow',           base = 38.00 },
+    { name = 'WEAPON_MELEE_KNIFE',           label = 'Hunting Knife',         base = 8.00 },
+}

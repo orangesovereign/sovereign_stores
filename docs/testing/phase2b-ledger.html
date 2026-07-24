@@ -186,6 +186,13 @@
       { id: 'F5', who: 'a', t: "Owner: <code>Promote</code> the employee to co-owner, confirm the role change, then <code>Fire</code> them.", x: "<b>Expect:</b> role reads Co-Owner (all permissions); firing clears them from the roster entirely." },
     ]},
 
+    { art: 'VI', title: 'The Gun Counter &amp; the Cashier', tag: 'D8 · owner rulings 2026-07-24', who: 'both',
+      why: "Two owner rulings made law: cashiers come from a short approved list, and weapons are a real store category — every piece sold carries the store's serial.", items: [
+      { id: 'W1', who: 'a', t: "Owner: <code>Storefront</code> section → <b>Cashier</b>. Pick a different cashier from the groups, then step outside and back.", x: "<b>Expect:</b> the list offers only 2-3 peds per group (Shopkeepers / Gunsmiths / Butchers / Barkeeps / Doctors / Tradesfolk — never the full ped zoo); the counter ped swaps to your pick and it survives a panel reopen." },
+      { id: 'W2', who: 'a', t: "Owner: <code>Stock &amp; Storage</code> → <b>List Weapon</b>. Pick something from the county catalog, qty 2, keep the suggested price.", x: "<b>Expect:</b> the Shelves table gains a “gun counter” row under the weapon's proper name (no WEAPON_ codes anywhere)." },
+      { id: 'W3', who: 'both', gate: true, t: "Buyer: purchase ONE of the listed weapons. Then the CONSOLE runs <code>SELECT * FROM sovereign_weapon_serials ORDER BY created_at DESC LIMIT 1;</code>", x: "<b>Expect:</b> buyer pays the listed price and holds the piece — inspect it: custom label, description “Sold by {store} ({CODE})”, serial <code>{CODE}-XXXXXX</code>. The registry row matches; the owner's ledger shows the sale; the gun-counter count is down one." },
+      { id: 'W4', who: 'a', t: "On a store WITHOUT a Bureau code (the throwaway, or clear one), open <b>List Weapon</b> and try.", x: "<b>Expect:</b> a plain-English refusal — the Bureau must stamp a store code before guns can be sold. No listing appears." },
+    ]},
     { art: 'V', title: 'Identity &amp; Stability', tag: 'D6 · no-red rule', who: 'both',
       why: "The name over the door belongs to the owner — and the console stays clean through all of it.", items: [
       { id: 'I1', who: 'both', t: "Owner: <code>Rename</code> the store and set a tagline. Buyer: check the map blip and reopen the storefront.", x: "<b>Expect:</b> the blip label updates live; the storefront masthead shows the new name with the tagline under it." },

@@ -278,6 +278,26 @@ function PStores.setBranding(id, branding, actorCharid)
     return true
 end
 
+---Owner-selectable cashier, validated against the curated config list.
+function PStores.setCashier(id, model, actorCharid)
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown' end
+    model = tostring(model or ''):lower()
+    local valid = false
+    for _, group in ipairs(Config.CashierPeds or {}) do
+        for _, ped in ipairs(group.peds) do
+            if ped.model:lower() == model then valid = true break end
+        end
+        if valid then break end
+    end
+    if not valid then return false, 'bad_model' end
+    Db.execute('UPDATE sovereign_stores SET npc_model = ? WHERE id = ?', { model, s.id })
+    s.npc_model = model
+    EventLog.write(s.id, 'cashier_set', actorCharid, nil, { model = model })
+    republish()
+    return true
+end
+
 function PStores.rename(id, name, actorCharid)
     local s = cache[tonumber(id)]
     if not s then return false, 'unknown' end

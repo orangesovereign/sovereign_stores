@@ -25,8 +25,20 @@ local function row(storeId, item)
     return rows and rows[1] or nil
 end
 
+---Weapon listings are virtual gun-counter rows (no physical storage —
+---the piece is created serial-stamped at sale, docs/05 §weapons).
+local function isWeapon(item) return tostring(item):find('^WEAPON_') ~= nil end
+
+function Stock.weaponDef(item)
+    for _, w in ipairs(Config.WeaponCatalog or {}) do
+        if w.name == item then return w end
+    end
+    return nil
+end
+
 ---Move goods back room → shelf, setting price/category on the way.
 function Stock.shelve(storeId, item, qty, price, category)
+    if isWeapon(item) then return false, 'use_weapon_listing' end
     qty = math.floor(tonumber(qty) or 0)
     price = Util.round2(tonumber(price) or -1)
     if qty < 1 or price < 0 then return false, 'bad_input' end
@@ -46,13 +58,32 @@ function Stock.shelve(storeId, item, qty, price, category)
     return true
 end
 
----Move goods shelf → back room.
+---Put a weapon listing on the gun counter (or extend it).
+function Stock.listWeapon(storeId, item, qty, price)
+    local def = Stock.weaponDef(item)
+    if not def then return false, 'unknown_weapon' end
+    qty = math.floor(tonumber(qty) or 0)
+    price = Util.round2(tonumber(price) or -1)
+    if qty < 1 or qty > 99 or price < 0 then return false, 'bad_input' end
+    local existing = row(storeId, item)
+    if existing then
+        Db.execute('UPDATE sovereign_store_stock SET quantity = quantity + ?, price = ? WHERE id = ?',
+            { qty, price, existing.id })
+    else
+        Db.insert('INSERT INTO sovereign_store_stock (store_id, item, quantity, price, category) VALUES (?, ?, ?, ?, ?)',
+            { storeId, item, qty, price, 'weapons' })
+    end
+    return true
+end
+
+---Move goods shelf → back room. Weapon listings simply delist (they
+---never occupied storage).
 function Stock.unshelve(storeId, item, qty, charid)
     qty = math.floor(tonumber(qty) or 0)
     if qty < 1 then return false, 'bad_input' end
     local existing = row(storeId, item)
     if not existing or existing.quantity < qty then return false, 'not_on_shelf' end
-    if not Bridge.storage.addItems(storeId, { { name = item, amount = qty } }, charid) then
+    if not isWeapon(item) and not Bridge.storage.addItems(storeId, { { name = item, amount = qty } }, charid) then
         return false, 'storage_refused'
     end
     if existing.quantity == qty then
@@ -112,7 +143,9 @@ function Stock.catalog(storeId)
     local out = {}
     for _, r in ipairs(Stock.list(storeId)) do
         if r.quantity > 0 then
-            local def = Bridge.inv.getDef(r.item)
+            local weapon = isWeapon(r.item)
+            local wdef = weapon and Stock.weaponDef(r.item) or nil
+            local def = not weapon and Bridge.inv.getDef(r.item) or nil
             local endsIn = nil
             if r.sale_ends_at then
                 local ends = Db.scalar('SELECT GREATEST(0, TIMESTAMPDIFF(MINUTE, NOW(), ?)) ', { r.sale_ends_at })
@@ -120,8 +153,9 @@ function Stock.catalog(storeId)
             end
             out[#out + 1] = {
                 item = r.item,
-                label = (def and def.label) or r.item,
-                desc = def and def.desc or nil,
+                weapon = weapon or nil,
+                label = (wdef and wdef.label) or (def and def.label) or r.item,
+                desc = weapon and 'Sold new — serial-stamped at the counter.' or (def and def.desc) or nil,
                 price = Util.round2(r.price),
                 salePercent = r.sale_percent,
                 saleEndsMin = endsIn,

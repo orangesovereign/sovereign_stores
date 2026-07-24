@@ -203,7 +203,16 @@ local function checkout(src, storeKey, cart)
         if okLine then
             if line.entry.weapon then
                 for _ = 1, line.qty do
-                    if not Bridge.weapons.createStamped(src, line.entry.item, nil, nil, nil) then okLine = false end
+                    local serial, label, desc = nil, nil, nil
+                    if pstore and pstore.code then
+                        -- player gun counter: every piece leaves with the store's mark (D8)
+                        serial = Serials.issue(pstore.id, pstore.code, line.entry.item, Bridge.getCharId(src))
+                        if serial then
+                            label = line.entry.label
+                            desc = ('Sold by %s (%s)'):format(pstore.name, pstore.code)
+                        end
+                    end
+                    if not Bridge.weapons.createStamped(src, line.entry.item, serial, label, desc) then okLine = false end
                 end
             else
                 okLine = Bridge.inv.add(src, line.entry.item, line.qty)
