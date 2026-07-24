@@ -79,6 +79,12 @@ pass/fail gate before the next phase starts.
 
 ### Standing rules
 
+- **Duo Ledger process (owner ruling 2026-07-24):** any test needing two players goes on the
+  rolling **Duo Ledger** (`docs/testing/duo-ledger.html`), run at end-of-day duo sessions —
+  never in phase ledgers. Duo-gated work is annotated and **ASSUMED FUNCTIONAL** until the duo
+  report lands; building never stops to wait for a second tester. Phase gates count solo
+  blockers only; duo blockers confirm (or reopen) at the next duo session.
+
 - Every external call goes through `shared/bridge.lua`; feature code never names another resource.
 - Server-authoritative everything; NUI is presentation only; no client-trusted prices/quantities.
 - Money mutations and stock mutations happen in one guarded transaction path with typed ledger writes.
