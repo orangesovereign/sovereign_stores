@@ -464,11 +464,18 @@ function AssignStore({ onClose, onDone, say }) {
               <select value={form.category} onChange={set('category')}>
                 <option value="general">General Store</option>
                 <option value="weapons">Gunsmith / Weapons</option>
+                <option value="saloon">Saloon</option>
+                <option value="nightclub">Nightclub</option>
+                <option value="restaurant">Restaurant</option>
+                <option value="bakery">Bakery</option>
+                <option value="butcher">Butcher</option>
                 <option value="fishing">Fishing</option>
                 <option value="pelts">Pelt Trader</option>
-                <option value="butcher">Butcher</option>
-                <option value="saloon">Saloon</option>
+                <option value="animals">Animals</option>
+                <option value="mining">Mining</option>
+                <option value="produce">Produce</option>
                 <option value="tailor">Tailor</option>
+                <option value="other">Other</option>
               </select>
             </label>
             <label>Code (3 letters)<input value={form.code} onChange={set('code')} maxLength={3} placeholder="BWM" /></label>

@@ -37,16 +37,32 @@ export const IconTag = () => (
 export const IconDot = () => (
   <svg {...base}><circle cx="8" cy="8" r="2.5" /></svg>
 )
+export const IconMusic = () => (
+  <svg {...base}><circle cx="4.5" cy="12" r="2" /><circle cx="11.5" cy="10.5" r="2" /><path d="M6.5 12V4l7-1.5v8" /></svg>
+)
+export const IconLoaf = () => (
+  <svg {...base}><path d="M2.5 8.5c0-2.2 2.5-4 5.5-4s5.5 1.8 5.5 4v3h-11z" /><path d="M6 7.5l-1 2M9 7.5l-1 2M12 7.5l-1 2" /></svg>
+)
+export const IconPick = () => (
+  <svg {...base}><path d="M8.5 7.5L3 13" /><path d="M5.5 2.5c4 .5 7.5 4 8 8" /><path d="M5.5 2.5l1.2 1.2M13.5 10.5l-1.2-1.2" /></svg>
+)
+export const IconLeaf = () => (
+  <svg {...base}><path d="M3 13C3 6.5 8 3 13.5 3 13.5 9.5 8.5 13 3 13z" /><path d="M3 13c2.5-3.5 5-6 8-8" /></svg>
+)
 
 const MAP = {
-  all: IconBox, general: IconBox, goods: IconBox,
-  provisions: IconBowl, food: IconBowl,
+  all: IconBox, general: IconBox, goods: IconBox, other: IconBox,
+  provisions: IconBowl, food: IconBowl, restaurant: IconBowl,
   supplies: IconWrench, tools: IconWrench,
   hunting: IconArrow,
   weapons: IconArrow,
-  horse: IconHorseshoe, horsecare: IconHorseshoe,
+  horse: IconHorseshoe, horsecare: IconHorseshoe, animals: IconHorseshoe,
   sundries: IconCoin, valuables: IconCoin,
-  drinks: IconBottle,
+  drinks: IconBottle, saloon: IconBottle,
+  nightclub: IconMusic,
+  bakery: IconLoaf,
+  mining: IconPick,
+  produce: IconLeaf,
   sale: IconTag,
 }
 
