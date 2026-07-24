@@ -329,3 +329,5 @@ CreateThread(function()
         cb(sellToStore(source, tostring(storeKey), entries))
     end)
 end)
+
+Boot.transactions = true

@@ -183,3 +183,5 @@ function Npc.jobAllowed(src, storeKey)
     end
     return false
 end
+
+Boot.npc_stores = true

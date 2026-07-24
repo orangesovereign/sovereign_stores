@@ -19,6 +19,8 @@ Locales['en'] = {
 
     -- storefront
     prompt_browse           = 'Browse',
+    prompt_manage           = 'Manage Store',
+    err_char_not_ready      = 'Your character isn\'t ready yet — give it a moment and try again.',
     bought_total            = 'Purchase complete — $%.2f.',
     sold_total              = 'Sold — $%.2f received.',
     store_err_unknown_store = 'That store isn\'t trading right now.',

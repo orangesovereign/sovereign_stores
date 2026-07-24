@@ -59,3 +59,5 @@ exports('SpendGovernmentFund', function(amount, note)
     Fund.debit('spend', amount, nil, note or 'external spend')
     return true, Fund.balance()
 end)
+
+Boot.fund = true

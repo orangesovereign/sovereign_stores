@@ -74,3 +74,5 @@ end
 function Db.requiredTables()
     return REQUIRED_TABLES
 end
+
+Boot.db = true

@@ -39,3 +39,5 @@ end
 exports('LookupWeaponSerial', function(serial)
     return Serials.lookup(serial)
 end)
+
+Boot.serials = true

@@ -5,6 +5,11 @@
 
 Util = {}
 
+-- Load sentinels: every server module stamps Boot.<name> = true at its last
+-- line; core.lua names any module that never loaded (stale server copies,
+-- manifest gaps). Shared scripts load first, so the table exists for all.
+Boot = Boot or {}
+
 local RES <const> = GetCurrentResourceName()
 
 function Util.log(msg)  print(('^6[%s]^7 %s'):format(RES, msg)) end

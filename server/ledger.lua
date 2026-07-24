@@ -74,3 +74,5 @@ function Ledger.sweepToFund(storeId, reason)
     end
     return swept
 end
+
+Boot.ledger = true

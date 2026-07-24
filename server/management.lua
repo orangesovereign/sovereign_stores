@@ -43,6 +43,19 @@ local function charName(charid)
     return r and ('%s %s'):format(r.firstname or '?', r.lastname or '?') or ('#' .. tostring(charid))
 end
 
+---The caller's satchel, for the visual deposit picker (ledger II K1:
+---typing DB item names was unusable and invisible — owner ruling).
+local function satchelOf(src)
+    local out = {}
+    for _, st in pairs(Bridge.inv.getAll(src) or {}) do
+        if (st.count or 0) > 0 then
+            out[#out + 1] = { name = st.name, label = st.label or st.name, count = st.count }
+        end
+    end
+    table.sort(out, function(a, b) return tostring(a.label) < tostring(b.label) end)
+    return out
+end
+
 local function mgmtPayload(src, storeId)
     local s = PStores.get(storeId)
     local charid = Bridge.getCharId(src)
@@ -82,6 +95,7 @@ local function mgmtPayload(src, storeId)
         week = weekBars(s.id),
         stock = Stock.list(s.id),
         storage = Bridge.storage.items(s.id),
+        satchel = satchelOf(src),
         staff = staff,
         maxEmployees = Config.MaxEmployees,
         ledger = Ledger.history(s.id, 'operating', 20),
@@ -207,6 +221,9 @@ CreateThread(function()
         local fn = ACTIONS[tostring(action)]
         if not fn then return cb({ ok = false, error = 'bad_action' }) end
         local ok, err = fn(s, source, charid, payload or {})
+        if ok == true and payload and payload.charid then
+            NotifyRosterChanged(payload.charid)   -- hire/fire/promote: refresh their counter prompt
+        end
         cb({ ok = ok == true, error = err })
     end)
 
@@ -241,11 +258,25 @@ CreateThread(function()
     end)
 end)
 
+---Find the live server id for a character, if they're online, and tell
+---their client to refresh its staffed-stores cache (counter prompt).
+function NotifyRosterChanged(charid)
+    charid = tonumber(charid)
+    if not charid then return end
+    for _, pid in ipairs(GetPlayers()) do
+        local src = tonumber(pid)
+        if src and Bridge.getCharId(src) == charid then
+            return TriggerClientEvent('sovereign_stores:rosterChanged', src)
+        end
+    end
+end
+
 -- /mystore opens the management panel (staff-gated server-side).
+-- NEVER silent: every exit path tells the player something (ledger II M1).
 RegisterCommand('mystore', function(source)
     if source == 0 then return Util.warn('mystore is an in-game command') end
     local charid = Bridge.getCharId(source)
-    if not charid then return end
+    if not charid then return Bridge.notify(source, _U('err_char_not_ready')) end
     for id in pairs(PStores.all()) do
         if PStores.roleOf(id, charid) then
             return TriggerClientEvent('sovereign_stores:openManagement', source)
@@ -253,3 +284,24 @@ RegisterCommand('mystore', function(source)
     end
     Bridge.notify(source, _U('err_not_staff'))
 end, false)
+
+-- Counter prompt: the client asks for a specific store's panel. Trust
+-- nothing — staff role AND physical presence re-checked here.
+RegisterNetEvent('sovereign_stores:requestManagement', function(storeId)
+    local src = source
+    local charid = Bridge.getCharId(src)
+    if not charid then return Bridge.notify(src, _U('err_char_not_ready')) end
+    local s = PStores.get(tonumber(storeId))
+    if not s or not PStores.roleOf(s.id, charid) then
+        return Bridge.notify(src, _U('err_not_staff'))
+    end
+    local rc = s.register_coords
+    if rc then
+        local pos = GetEntityCoords(GetPlayerPed(src))
+        local dx, dy, dz = pos.x - rc.x, pos.y - rc.y, pos.z - rc.z
+        if (dx * dx + dy * dy + dz * dz) > (12.0 * 12.0) then return end
+    end
+    TriggerClientEvent('sovereign_stores:openManagementFor', src, s.id)
+end)
+
+Boot.management = true

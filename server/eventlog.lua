@@ -25,3 +25,5 @@ function EventLog.recent(storeId, limit)
         { storeId, math.min(tonumber(limit) or 50, 200) }
     ) or {}
 end
+
+Boot.eventlog = true

@@ -132,3 +132,5 @@ function Stock.catalog(storeId)
     end
     return out
 end
+
+Boot.stock = true

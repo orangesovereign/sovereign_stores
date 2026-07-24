@@ -319,3 +319,5 @@ function PStores.withdraw(id, src, amount)
     Bridge.money.add(src, amount)
     return true, Ledger.balance(s.id, 'operating')
 end
+
+Boot.player_stores = true

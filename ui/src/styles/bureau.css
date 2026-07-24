@@ -271,3 +271,29 @@
 }
 .closedcard__msg { font-style: italic; color: var(--sv-muted); font-size: 16px; max-width: 420px; }
 .foot--closed { position: absolute; bottom: 0; left: 0; right: 0; border-top: none; }
+
+/* ── Satchel picker (Management · Back Room deposit) ─────────────── */
+.modal--wide { width: min(560px, 92vw); }
+.satchel {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px; margin-top: 14px;
+  max-height: 300px; overflow-y: auto;
+}
+.satchel__slot {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; text-align: left;
+  background: var(--sv-raised);
+  border: 1px solid rgba(138, 92, 46, 0.25);
+}
+.satchel__slot:hover { border-color: var(--sv-brass); }
+.satchel__slot.on { border-color: var(--sv-gold); background: rgba(138, 92, 46, 0.14); }
+.satchel__label { flex: 1; font-size: 14px; color: var(--sv-ivory); line-height: 1.2; }
+.satchel__count { font-family: var(--sv-label); font-size: 12px; color: var(--sv-parchment); }
+.satchel__confirm {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 14px; padding: 12px 14px;
+  border: 1px solid rgba(138, 92, 46, 0.35);
+  background: var(--sv-gunmetal);
+  font-size: 15px;
+}
+.satchel__confirm > span:first-child { flex: 1; }

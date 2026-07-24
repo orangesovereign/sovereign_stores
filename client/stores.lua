@@ -8,12 +8,15 @@
 local placements = {}          -- runtime copies with handles
 local promptGroup = GetRandomIntInRange(0, 0xffffff)
 local openPrompt = nil
+local managePrompt = nil
 local storefrontOpen = false
+local myStores = {}            -- set of store ids this character staffs
 
 local SPAWN_DIST <const> = 25.0    -- ped appears/disappears around this
-local PROMPT_KEY <const> = 0x760A9C6F  -- [G]
+local PROMPT_KEY <const> = 0x760A9C6F   -- [G]  (INPUT_WHISTLE — stables-proven)
+local MANAGE_KEY <const> = 0x3B24C470   -- [F]  INPUT_CONTEXT_B (rdr3_discoveries Controls)
 
--- ── Prompt ──────────────────────────────────────────────────────────
+-- ── Prompts ─────────────────────────────────────────────────────────
 
 local function setupPrompt()
     openPrompt = UiPromptRegisterBegin()
@@ -24,7 +27,32 @@ local function setupPrompt()
     UiPromptSetStandardMode(openPrompt, true)
     UiPromptSetGroup(openPrompt, promptGroup, 0)
     UiPromptRegisterEnd(openPrompt)
+
+    -- staff-only second prompt at the same counter; visibility toggled per frame
+    managePrompt = UiPromptRegisterBegin()
+    UiPromptSetControlAction(managePrompt, MANAGE_KEY)
+    UiPromptSetText(managePrompt, VarString(10, 'LITERAL_STRING', _U('prompt_manage')))
+    UiPromptSetEnabled(managePrompt, false)
+    UiPromptSetVisible(managePrompt, false)
+    UiPromptSetStandardMode(managePrompt, true)
+    UiPromptSetGroup(managePrompt, promptGroup, 0)
+    UiPromptRegisterEnd(managePrompt)
 end
+
+-- ── Staffed-store cache (drives the Manage prompt) ──────────────────
+
+local function refreshMyStores()
+    local Core = exports.vorp_core:GetCore()
+    local res = Core.Callback.TriggerAwait('sovereign_stores:mgmt:myStores')
+    myStores = {}
+    if res and res.ok then
+        for _, s in ipairs(res.stores) do myStores[tonumber(s.id)] = true end
+    end
+end
+
+RegisterNetEvent('sovereign_stores:rosterChanged', function()
+    CreateThread(refreshMyStores)
+end)
 
 -- ── Blips / peds per placement ──────────────────────────────────────
 
@@ -77,6 +105,7 @@ local function rebuildPlacements(raw)
             store = src.store, idx = src.idx, label = src.label,
             coords = src.coords, heading = src.heading,
             npcModel = src.npcModel, blip = src.blip,
+            playerStoreId = tonumber(tostring(src.store):match('^p:(%d+)$')),
             pedHandle = nil, blipHandle = nil,
         }
         p.blipHandle = addBlip(p)
@@ -88,6 +117,7 @@ end
 CreateThread(function()
     while not Bridge.ready() do Wait(500) end
     setupPrompt()
+    refreshMyStores()
     -- initial read + live updates
     while GlobalState['sovereign_stores:placements'] == nil do Wait(500) end
     rebuildPlacements(GlobalState['sovereign_stores:placements'])
@@ -136,9 +166,14 @@ CreateThread(function()
                 -- prompt + open
                 if d <= (Config.InteractDistance or 3.0) then
                     slept = false
+                    local staffHere = p.playerStoreId ~= nil and myStores[p.playerStoreId] == true
+                    UiPromptSetVisible(managePrompt, staffHere)
+                    UiPromptSetEnabled(managePrompt, staffHere)
                     UiPromptSetActiveGroupThisFrame(promptGroup, VarString(10, 'LITERAL_STRING', p.label), 0, 0, 0, 0)
                     if UiPromptHasStandardModeCompleted(openPrompt, 0) then
                         openStorefront(p.store)
+                    elseif staffHere and UiPromptHasStandardModeCompleted(managePrompt, 0) then
+                        TriggerServerEvent('sovereign_stores:requestManagement', p.playerStoreId)
                     end
                 end
             end
@@ -155,4 +190,5 @@ AddEventHandler('onResourceStop', function(res)
     end
     if storefrontOpen then SetNuiFocus(false, false) end
     if openPrompt then UiPromptDelete(openPrompt) end
+    if managePrompt then UiPromptDelete(managePrompt) end
 end)

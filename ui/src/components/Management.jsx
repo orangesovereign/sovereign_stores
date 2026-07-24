@@ -188,6 +188,8 @@ function Overview({ data }) {
 
 function StockView({ data, act, me, isBoss }) {
   const canPrice = isBoss || hasPerm(me.permissions, 8)
+  const canStock = isBoss || hasPerm(me.permissions, 1)
+  const [depositing, setDepositing] = useState(false)
   return (
     <div className="cols2">
       <div className="sheetcard">
@@ -226,8 +228,13 @@ function StockView({ data, act, me, isBoss }) {
       </div>
 
       <div className="sheetcard">
-        <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">The physical goods</span>
-          <h2 className="sheetcard__title">Back Room</h2></div></div>
+        <div className="sheetcard__bar">
+          <div><span className="sheetcard__eyebrow">The physical goods</span>
+            <h2 className="sheetcard__title">Back Room</h2></div>
+          {canStock && (
+            <button className="primary" onClick={() => setDepositing(true)}>Deposit from Satchel</button>
+          )}
+        </div>
         {data.storage.length === 0 ? <div className="empty">The back room is empty — deposit goods from your satchel.</div> : (
           <table className="dtable">
             <thead><tr><th /><th>Item</th><th>Qty</th><th /></tr></thead>
@@ -253,14 +260,59 @@ function StockView({ data, act, me, isBoss }) {
             </tbody>
           </table>
         )}
-        <div className="sheetcard__afterbar">
-          <AskInline label="Deposit from satchel" placeholder="item name, qty (e.g. alcohol, 3)"
-            onSubmit={(v) => {
-              const idx = v.lastIndexOf(',')
-              const item = (idx > 0 ? v.slice(0, idx) : v).trim()
-              const qty = idx > 0 ? v.slice(idx + 1).trim() : '1'
-              act('storage_deposit', { item, qty }, 'Deposited.')
-            }} />
+      </div>
+
+      {depositing && (
+        <SatchelPicker satchel={data.satchel || []} onClose={() => setDepositing(false)}
+          onDeposit={(item, qty) => { setDepositing(false); act('storage_deposit', { item, qty }, 'Deposited.') }} />
+      )}
+    </div>
+  )
+}
+
+/* Visual satchel picker (ledger II K1): pick goods by sight, never by
+   typing database names. */
+function SatchelPicker({ satchel, onClose, onDeposit }) {
+  const [picked, setPicked] = useState(null)   // { name, label, count }
+  const [qty, setQty] = useState(1)
+
+  const pick = (s) => { setPicked(s); setQty(s.count) }
+
+  return (
+    <div className="modal__scrim" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__eyebrow">Back Room · Deposit</div>
+        <h2 className="modal__title">Your Satchel</h2>
+        {satchel.length === 0 ? (
+          <div className="empty">You aren't carrying anything that can be stored.</div>
+        ) : (
+          <div className="satchel">
+            {satchel.map((s) => (
+              <button key={s.name}
+                className={'satchel__slot' + (picked?.name === s.name ? ' on' : '')}
+                onClick={() => pick(s)}>
+                <ItemArt item={s.name} label={s.label} size="sm" />
+                <span className="satchel__label">{s.label}</span>
+                <span className="satchel__count">×{s.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {picked && (
+          <div className="satchel__confirm">
+            <span>Deposit <b>{picked.label}</b></span>
+            <span className="stepper">
+              <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
+              <b>{Math.min(qty, picked.count)}</b>
+              <button onClick={() => setQty(Math.min(picked.count, qty + 1))}>+</button>
+            </span>
+            <button className="primary" onClick={() => onDeposit(picked.name, Math.min(qty, picked.count))}>
+              Deposit {Math.min(qty, picked.count)}
+            </button>
+          </div>
+        )}
+        <div className="modal__foot">
+          <button onClick={onClose}>Close</button>
         </div>
       </div>
     </div>

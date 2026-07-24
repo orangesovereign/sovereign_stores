@@ -23,6 +23,12 @@ local function openPanel(storeId)
     SendNUIMessage({ action = 'mgmt:open', payload = res })
 end
 
+-- counter prompt path: the server already validated staff role + presence
+RegisterNetEvent('sovereign_stores:openManagementFor', function(storeId)
+    if mgmtOpen then return end
+    CreateThread(function() openPanel(tonumber(storeId)) end)
+end)
+
 RegisterNetEvent('sovereign_stores:openManagement', function()
     if mgmtOpen then return end
     local mine = await('sovereign_stores:mgmt:myStores')

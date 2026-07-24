@@ -7,6 +7,20 @@
 local booted, bootOk = false, false
 local VERSION <const> = GetResourceMetadata(GetCurrentResourceName(), 'version', 0) or '?'
 
+-- every server module must have stamped its sentinel (shared/util.lua)
+local MODULES <const> = {
+    'db', 'fund', 'eventlog', 'ledger', 'serials', 'player_stores',
+    'npc_stores', 'admin', 'stock', 'management', 'transactions',
+}
+
+local function missingModules()
+    local missing = {}
+    for _, m in ipairs(MODULES) do
+        if not Boot[m] then missing[#missing + 1] = m end
+    end
+    return missing
+end
+
 local function buildReport()
     local report = {
         version   = VERSION,
@@ -14,6 +28,7 @@ local function buildReport()
         deps      = Bridge.checkDependencies(),
         oxmysql   = Db.available(),
         dbMissing = Db.available() and Db.verifySchema() or Db.requiredTables(),
+        modules   = missingModules(),
         counts    = {},
     }
     if report.oxmysql and #report.dbMissing == 0 then
@@ -25,6 +40,7 @@ local function buildReport()
         report.counts.npcTypes, report.counts.npcSpots = types, spots
     end
     report.ok = (#report.config == 0) and report.oxmysql and (#report.dbMissing == 0)
+        and (#report.modules == 0)
     for _, dep in ipairs(report.deps) do
         if dep.required and dep.state ~= 'started' then report.ok = false end
     end
@@ -33,6 +49,12 @@ end
 
 local function printReport(report)
     Util.log(('═══ %s v%s ═══'):format(_U('diag_header'), report.version))
+
+    if #report.modules > 0 then
+        for _, m in ipairs(report.modules) do
+            Util.err(('  MODULE NEVER LOADED: server/%s.lua — the server is running a stale or incomplete copy; re-pull the resource'):format(m))
+        end
+    end
 
     Util.log(_U('diag_config') .. ':')
     if #report.config == 0 then Util.ok('  ' .. _U('diag_ok'))

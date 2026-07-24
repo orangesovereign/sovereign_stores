@@ -150,7 +150,14 @@ CreateThread(function()
         if not s then return { ok = false, error = 'unknown' } end
         local fn = ACTIONS[tostring(action)]
         if not fn then return { ok = false, error = 'bad_action' } end
+        local prevOwner, prevCoOwner = s.owner_charid, s.coowner_charid
         local ok, err = fn(s, payload or {}, Bridge.getCharId(source))
+        if ok == true and NotifyRosterChanged then
+            -- ownership moved or was stripped: refresh every affected client's prompt cache
+            if payload and payload.charid then NotifyRosterChanged(payload.charid) end
+            if prevOwner then NotifyRosterChanged(prevOwner) end
+            if prevCoOwner then NotifyRosterChanged(prevCoOwner) end
+        end
         return { ok = ok == true, error = err }
     end)
 
@@ -200,3 +207,5 @@ RegisterCommand('storeadmin', function(source)
     end
     TriggerClientEvent('sovereign_stores:openAdmin', source)
 end, false)
+
+Boot.admin = true
