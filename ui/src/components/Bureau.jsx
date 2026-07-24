@@ -428,12 +428,14 @@ function AssignStore({ onClose, onDone, say }) {
   })
   const [owner, setOwner] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)   // shown INSIDE the modal — deck toasts hide behind it
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
 
   const submit = async () => {
     if (busy) return
-    if (form.name.trim().length < 3) return say('bad', 'The store needs a real name.')
+    if (form.name.trim().length < 3) return setError('The store needs a real name.')
     setBusy(true)
+    setError(null)
     const res = await post('adminCreate', {
       name: form.name.trim(), category: form.category,
       code: form.code.trim().toUpperCase(), price: form.price, rate: form.rate,
@@ -441,10 +443,12 @@ function AssignStore({ onClose, onDone, say }) {
     })
     setBusy(false)
     if (res?.ok) {
-      say('good', res.warning ? 'Chartered — but the code was refused (' + res.warning + ').' : 'Store chartered.')
+      say('good', res.warning === 'code_taken'
+        ? 'Chartered — but that code is already taken. Set a different one from the store detail.'
+        : 'Store chartered.')
       onDone(res.id)
     } else {
-      say('bad', 'Refused: ' + (res?.error || 'no response'))
+      setError('Refused: ' + (res?.error || 'no response'))
     }
   }
 
@@ -482,6 +486,7 @@ function AssignStore({ onClose, onDone, say }) {
             Register counter at my current position
           </label>
         </div>
+        {error && <div className="toast toast--bad" style={{ margin: '12px 0 0' }}>{error}</div>}
         <div className="modal__foot">
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={busy} onClick={submit}>{busy ? 'Filing…' : 'Charter the store'}</button>
