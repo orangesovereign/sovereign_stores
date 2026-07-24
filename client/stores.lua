@@ -114,6 +114,7 @@ local function rebuildPlacements(raw)
             store = src.store, idx = src.idx, label = src.label,
             coords = src.coords, heading = src.heading,
             npcModel = src.npcModel, blip = src.blip,
+            hidePed = src.hidePed == true,   -- staff clocked in: no NPC cashier (G3)
             playerStoreId = tonumber(tostring(src.store):match('^p:(%d+)$')),
             pedHandle = nil, blipHandle = nil,
         }
@@ -166,9 +167,9 @@ CreateThread(function()
                 local d = #(pos - vector3(p.coords.x, p.coords.y, p.coords.z))
 
                 -- ped lifecycle
-                if d <= SPAWN_DIST and not p.pedHandle then
+                if d <= SPAWN_DIST and not p.pedHandle and not p.hidePed then
                     p.pedHandle = spawnPed(p)
-                elseif d > SPAWN_DIST + 5.0 and p.pedHandle then
+                elseif p.pedHandle and (d > SPAWN_DIST + 5.0 or p.hidePed) then
                     removePed(p)
                 end
 

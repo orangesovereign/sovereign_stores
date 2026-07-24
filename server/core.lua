@@ -10,7 +10,7 @@ local VERSION <const> = GetResourceMetadata(GetCurrentResourceName(), 'version',
 -- every server module must have stamped its sentinel (shared/util.lua)
 local MODULES <const> = {
     'db', 'fund', 'eventlog', 'ledger', 'serials', 'player_stores',
-    'npc_stores', 'admin', 'stock', 'management', 'transactions',
+    'npc_stores', 'admin', 'stock', 'shifts', 'management', 'transactions',
 }
 
 local function missingModules()

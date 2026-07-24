@@ -96,6 +96,14 @@ function Stock.unshelve(storeId, item, qty, charid)
     return true
 end
 
+---Low-stock alert level (G6). nil/0 clears the alert.
+function Stock.setLowThreshold(storeId, item, threshold)
+    threshold = math.floor(tonumber(threshold) or 0)
+    local n = Db.execute('UPDATE sovereign_store_stock SET low_threshold = ? WHERE store_id = ? AND item = ?',
+        { threshold > 0 and threshold or nil, storeId, item })
+    return (n or 0) > 0, 'not_on_shelf'
+end
+
 function Stock.setPrice(storeId, item, price)
     price = Util.round2(tonumber(price) or -1)
     if price < 0 then return false, 'bad_price' end

@@ -327,3 +327,26 @@
   border-bottom: 1px solid rgba(138, 92, 46, 0.18);
 }
 .satchel__slot:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Shift Desk / notices ────────────────────────────────────────── */
+.sheetcard--notice { border-left: 2px solid var(--sv-amber); }
+.noticerow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 2px; font-size: 14.5px; color: var(--sv-ivory);
+  border-top: 1px solid rgba(138, 92, 46, 0.12);
+}
+.noticerow__flag {
+  font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sv-amber);
+  border: 1px solid var(--sv-amber); padding: 1px 8px; flex: none;
+}
+.notekind {
+  font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 1px 8px; border: 1px solid;
+}
+.notekind--note { color: var(--sv-parchment); border-color: rgba(138, 92, 46, 0.45); }
+.notekind--restock { color: var(--sv-amber); border-color: var(--sv-amber); }
+.norow--done { opacity: 0.45; }
+.norow--done b { text-decoration: line-through; }
+.primary--go { background: #3c4a2a; border-color: var(--sv-sage); }
+.primary--go:hover { background: #4a5c34; }

@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS `sovereign_store_stock` (
     `sale_percent` TINYINT       NULL DEFAULT NULL,                -- active discount %
     `sale_ends_at` DATETIME      NULL DEFAULT NULL,
     `category`     VARCHAR(32)   NOT NULL DEFAULT 'general',
+    `low_threshold` INT          NULL DEFAULT NULL,                -- staff low-stock alert level (G6)
     `metadata`     JSON          NULL,                             -- exact-match stack identity (docs/05)
     PRIMARY KEY (`id`),
     KEY `idx_store` (`store_id`),

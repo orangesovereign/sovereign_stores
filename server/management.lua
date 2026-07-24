@@ -98,6 +98,10 @@ local function mgmtPayload(src, storeId)
         satchel = satchelOf(src),
         cashierPeds = Config.CashierPeds,
         weaponCatalog = Config.WeaponCatalog,
+        shift = Shifts.view(charid, s.id),
+        shiftRoster = Shifts.roster(s.id),
+        notes = Notes.list(s.id),
+        lowStock = Shifts.lowStock(s.id),
         staff = staff,
         maxEmployees = Config.MaxEmployees,
         ledger = Ledger.history(s.id, 'operating', 20),
@@ -202,6 +206,29 @@ ACTIONS.storage_deposit = function(s, src, charid, p)
     end
     return true
 end
+-- shift desk (G1-G4, G6) — any staff role
+ACTIONS.clock_in = function(s, src, charid)
+    return Shifts.clockIn(src, s.id)
+end
+ACTIONS.clock_out = function(s, src, charid)
+    local ok, err = Shifts.clockOut(charid, 'self')
+    return ok, err
+end
+ACTIONS.note_add = function(s, src, charid, p)
+    return Notes.add(s.id, charid, p.kind, p.content)
+end
+ACTIONS.note_toggle = function(s, src, charid, p)
+    return Notes.toggle(s.id, tonumber(p.id))
+end
+ACTIONS.note_del = function(s, src, charid, p)
+    local role = PStores.roleOf(s.id, charid)
+    return Notes.remove(s.id, tonumber(p.id), charid, role == 'owner' or role == 'coowner')
+end
+ACTIONS.set_low_threshold = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    return Stock.setLowThreshold(s.id, tostring(p.item), p.threshold)
+end
+
 ACTIONS.storage_take = function(s, src, charid, p)
     if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
     local item, qty = tostring(p.item), math.floor(tonumber(p.qty) or 0)

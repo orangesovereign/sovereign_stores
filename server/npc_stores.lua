@@ -145,6 +145,8 @@ function Npc.publishAll()
                     coords   = { x = rc.x, y = rc.y, z = rc.z },
                     heading  = rc.h or 0.0,
                     npcModel = s.npc_model or 'U_M_M_NbxGeneralStoreOwner_01',
+                    -- G3: the NPC cashier steps aside while real staff are clocked in
+                    hidePed  = (Shifts and Shifts.activeCount(id) or 0) > 0 or nil,
                     blip     = (s.status == 'open') and { sprite = 1475879922, label = s.name } or nil,
                 }
             end

@@ -21,3 +21,11 @@ CREATE TABLE IF NOT EXISTS `sovereign_store_events` (
     KEY `idx_store_time` (`store_id`, `created_at`),
     KEY `idx_kind` (`kind`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2026-07-24b · Phase 3 (staff systems)
+-- Per-item low-stock threshold on the shelf. Idempotent: errors about a
+-- duplicate column mean it's already done — ignore and move on.
+-- ─────────────────────────────────────────────────────────────────────
+ALTER TABLE `sovereign_store_stock`
+    ADD COLUMN IF NOT EXISTS `low_threshold` INT NULL DEFAULT NULL AFTER `category`;

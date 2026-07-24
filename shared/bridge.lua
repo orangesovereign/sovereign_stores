@@ -66,6 +66,17 @@ if IS_SERVER then
     end
 
     -- ── Admin gate ──────────────────────────────────────────────────
+    ---Live server id for an online character, or nil.
+    function Bridge.srcByCharId(charid)
+        charid = tonumber(charid)
+        if not charid then return nil end
+        for _, pid in ipairs(GetPlayers()) do
+            local src = tonumber(pid)
+            if src and Bridge.getCharId(src) == charid then return src end
+        end
+        return nil
+    end
+
     function Bridge.isAdmin(src)
         if src == 0 then return true end -- server console
         local user = Bridge.getUser(src)

@@ -23,6 +23,7 @@ const hasPerm = (mask, bit) => ((mask || 0) & bit) !== 0
 
 const SECTIONS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'desk', label: 'Shift Desk' },
   { key: 'stock', label: 'Stock & Storage', need: 1 },
   { key: 'staff', label: 'Employees', boss: true },
   { key: 'ledgers', label: 'Ledgers' },
@@ -57,6 +58,10 @@ export default function Management({ initial }) {
     bad_price: 'The price must be a plain number — no $ signs.',
     bad_input: 'Quantity and price must both be plain numbers.',
     bad_sale: 'Sale needs a percent (1-90) and minutes (at least 1).',
+    already_clocked: "You're already on the clock.",
+    not_at_store: 'Step up to your own counter to clock in.',
+    not_clocked: "You aren't on the clock.",
+    bad_note: 'Write something first.',
     not_on_shelf: "The shelf doesn't hold that many.",
     cant_carry: "You can't carry that much.",
     not_carried: "You aren't carrying that.",
@@ -131,6 +136,7 @@ export default function Management({ initial }) {
           {toast && <div className={`toast toast--${toast.kind}`}>{toast.text}</div>}
 
           {section === 'overview' && <Overview data={data} />}
+          {section === 'desk' && <DeskView data={data} act={act} me={me} isBoss={isBoss} />}
           {section === 'stock' && <StockView data={data} act={act} me={me} isBoss={isBoss} />}
           {section === 'staff' && isBoss && <StaffView data={data} act={act} me={me} />}
           {section === 'ledgers' && <LedgersView data={data} act={act} me={me} isBoss={isBoss} />}
@@ -159,9 +165,22 @@ function Overview({ data }) {
           sub={s.taxRate > 0 ? `${s.taxRate}% of ${fmtMoney(s.purchasePrice)} monthly` : 'no levy set'} />
         <StatTile icon={<IconPulse />} label="Today's Sales" value={fmtMoney(data.today.sales)}
           sub={`${data.today.orders} customer order${data.today.orders === 1 ? '' : 's'}`} />
-        <StatTile icon={<IconClock />} label="Staff" value={data.staff.length}
-          sub={`of ${data.maxEmployees + 1} positions`} />
+        <StatTile icon={<IconClock />} label="On Shift" value={(data.shiftRoster || []).length}
+          sub={`${data.staff.length} of ${data.maxEmployees + 1} positions filled`} />
       </div>
+
+      {(data.lowStock || []).length > 0 && (
+        <div className="sheetcard sheetcard--notice">
+          <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Needs attention</span>
+            <h2 className="sheetcard__title">Store Notices</h2></div></div>
+          {data.lowStock.map((r) => (
+            <div className="noticerow" key={r.item}>
+              <span className="noticerow__flag">Low stock</span>
+              <span>{r.item} — {r.quantity} left (alert at {r.low_threshold})</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="cols2">
         <div className="sheetcard">
@@ -199,6 +218,118 @@ function Overview({ data }) {
         </div>
       </div>
     </>
+  )
+}
+
+/* ── Shift Desk (G1-G4, G6) ───────────────────────────────────────── */
+
+function DeskView({ data, act, me, isBoss }) {
+  const shift = data.shift
+  const nameOf = (charid) => {
+    if (charid === me.charid) return me.name
+    const s = (data.staff || []).find((e) => e.charid === charid)
+    return s ? s.name : '#' + charid
+  }
+  const minutes = (m) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`
+
+  return (
+    <div className="cols2">
+      <div>
+        <div className="sheetcard">
+          <div className="sheetcard__bar">
+            <div><span className="sheetcard__eyebrow">The clock</span>
+              <h2 className="sheetcard__title">My Shift</h2></div>
+            {shift ? (
+              <button className="primary" onClick={() => act('clock_out', {}, 'Clocked out.')}>Clock Out</button>
+            ) : (
+              <button className="primary primary--go" onClick={() => act('clock_in', {}, 'On the clock — stay near the counter.')}>Clock In</button>
+            )}
+          </div>
+          {shift ? (
+            <p className="mgmt__hint">
+              On shift · {minutes(shift.verified)} verified{shift.payModel
+                ? ` · ${fmtMoney(shift.accrued)} accrued (${shift.payModel})`
+                : ' · no wage (proprietor)'}.
+              The clock verifies you near the counter each tick — wander off and it punches you out.
+            </p>
+          ) : (
+            <p className="mgmt__hint">
+              Clock in AT your counter. While anyone is on the clock, the NPC cashier steps aside —
+              the store runs on real hands.
+            </p>
+          )}
+        </div>
+
+        <div className="sheetcard">
+          <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Live presence</span>
+            <h2 className="sheetcard__title">On Shift</h2></div></div>
+          {(data.shiftRoster || []).length === 0 ? (
+            <div className="empty">Nobody on the clock — the NPC cashier minds the counter.</div>
+          ) : (
+            <table className="dtable"><tbody>
+              {data.shiftRoster.map((r) => (
+                <tr key={r.charid} className="norow">
+                  <td><b>{nameOf(r.charid)}</b><span className="subline">verified at the storefront</span></td>
+                  <td className="dim">{minutes(r.verified)}</td>
+                </tr>
+              ))}
+            </tbody></table>
+          )}
+        </div>
+
+        {(data.lowStock || []).length > 0 && (
+          <div className="sheetcard sheetcard--notice">
+            <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Restock soon</span>
+              <h2 className="sheetcard__title">Low Stock</h2></div></div>
+            {data.lowStock.map((r) => (
+              <div className="noticerow" key={r.item}>
+                <span className="noticerow__flag">{r.quantity} left</span>
+                <span>{r.item} — alert at {r.low_threshold}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="sheetcard">
+        <div className="sheetcard__bar">
+          <div><span className="sheetcard__eyebrow">Between shifts</span>
+            <h2 className="sheetcard__title">Notes Board</h2></div>
+          <div className="actions actions--tight">
+            <AskInline label="Note" placeholder="for the next shift…"
+              onSubmit={(v) => act('note_add', { kind: 'note', content: v }, 'Pinned.')} />
+            <AskInline label="Restock" placeholder="what needs restocking…"
+              onSubmit={(v) => act('note_add', { kind: 'restock', content: v }, 'On the list.')} />
+          </div>
+        </div>
+        {(data.notes || []).length === 0 ? (
+          <div className="empty">The board is bare.</div>
+        ) : (
+          <table className="dtable"><tbody>
+            {data.notes.map((n) => (
+              <tr key={n.id} className={'norow' + (n.checked ? ' norow--done' : '')}>
+                <td style={{ width: 84 }}>
+                  <span className={'notekind notekind--' + n.kind}>{n.kind === 'restock' ? 'Restock' : 'Note'}</span>
+                </td>
+                <td><b>{n.content}</b><span className="subline">{nameOf(n.charid)} · {fmtAgo(n.created_at)}</span></td>
+                <td>
+                  <div className="actions actions--tight">
+                    {n.kind === 'restock' && (
+                      <button onClick={() => act('note_toggle', { id: n.id }, n.checked ? 'Reopened.' : 'Checked off.')}>
+                        {n.checked ? 'Reopen' : 'Done'}
+                      </button>
+                    )}
+                    {(isBoss || n.charid === me.charid) && (
+                      <button onClick={() => act('note_del', { id: n.id }, 'Taken down.')}>✕</button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -241,6 +372,8 @@ function StockView({ data, act, me, isBoss }) {
                             onSubmit={(pct, min) => act('set_sale', { item: r.item, percent: pct, minutes: min }, 'Sale started.')} />)}
                       <AskInline label="Unshelve" placeholder="qty" numeric
                         onSubmit={(v) => act('unshelve', { item: r.item, qty: v }, 'Moved to the back room.')} />
+                      {canStock && <AskInline label="Alert" placeholder="qty (0 clears)" numeric
+                        onSubmit={(v) => act('set_low_threshold', { item: r.item, threshold: v }, 'Alert level set.')} />}
                     </div>
                   </td>
                 </tr>
