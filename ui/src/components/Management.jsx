@@ -67,6 +67,9 @@ export default function Management({ initial }) {
     not_carried: "You aren't carrying that.",
     insufficient: "The ledger can't cover that.",
     no_permission: "You don't have the authority for that.",
+    already_staff: "They're already on the books here.",
+    coowner_cap: 'The co-owner chair is taken — clear it first.',
+    employee_cap: 'The roster is full.',
   }
 
   const act = async (action, payload, okMsg) => {

@@ -13,6 +13,11 @@ const ERRORS = {
   cant_afford: "You can't cover that total.",
   cant_carry: "You can't carry that much",
   bad_line: 'The clerk squints at your order — try again.',
+  unknown_item: "The clerk doesn't stock that",
+  bad_qty: 'The clerk squints at that quantity',
+  out_of_stock: "The shelf can't cover that",
+  closed: 'The store just closed.',
+  unknown_store: 'This counter is no longer in business.',
   empty_cart: 'Your basket is empty.',
   too_far: 'Step up to the counter first.',
   job_locked: "This store doesn't serve your line of work.",
@@ -68,13 +73,20 @@ export default function Storefront({ view, setView }) {
   const fee = 0
   const total = subtotal + fee
 
+  // the basket never exceeds the shelf: player-store entries carry a live
+  // stock count and the steppers clamp to it (duo D4 — refuse at the shelf,
+  // not at the register)
+  const capOf = (item) => {
+    const entry = store.buy.find((e) => e.item === item)
+    return entry?.stock != null ? Math.min(entry.stock, 99) : 99
+  }
   const addToCart = (item) =>
-    setCart((c) => ({ ...c, [item]: Math.min((c[item] || 0) + 1, 99) }))
+    setCart((c) => ({ ...c, [item]: Math.min((c[item] || 0) + 1, capOf(item)) }))
   const setQty = (item, qty) =>
     setCart((c) => {
       const next = { ...c }
       if (qty <= 0) delete next[item]
-      else next[item] = Math.min(qty, 99)
+      else next[item] = Math.min(qty, capOf(item))
       return next
     })
 

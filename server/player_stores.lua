@@ -189,6 +189,15 @@ function PStores.setCoOwner(id, charid, actorCharid)
     if not s then return false, 'unknown' end
     if charid and s.coowner_charid then return false, 'coowner_cap' end
     local previous = s.coowner_charid
+    if charid then
+        -- promotion consumes the old post — one person, one role (duo D10:
+        -- a lingering employee row doubled permissions and ate a staff slot)
+        Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ? AND charid = ?', { s.id, charid })
+        local list = roster[s.id] or {}
+        for i = #list, 1, -1 do
+            if list[i].charid == charid then table.remove(list, i) end
+        end
+    end
     Db.execute('UPDATE sovereign_stores SET coowner_charid = ? WHERE id = ?', { charid, s.id })
     s.coowner_charid = charid
     EventLog.write(s.id, charid and 'hired' or 'fired', actorCharid, charid or previous, { role = 'coowner' })

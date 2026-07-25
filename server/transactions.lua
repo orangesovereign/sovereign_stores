@@ -158,13 +158,24 @@ local function checkout(src, storeKey, cart)
     if store.closed then return { ok = false, error = 'closed' } end
     if type(cart) ~= 'table' or #cart == 0 then return { ok = false, error = 'empty_cart' } end
 
-    -- resolve + price every line server-side
+    -- resolve + price every line server-side. Refusals name their exact
+    -- cause and log the offending line — a generic squint taught us
+    -- nothing on the duo ledger (D3).
     local lines, total = {}, 0
     for _, raw in ipairs(cart) do
         local qty = math.floor(tonumber(raw.qty) or 0)
         local entry = findBuyEntry(store, tostring(raw.item))
-        if not entry or qty < 1 or qty > MAX_LINE_QTY then
-            return { ok = false, error = 'bad_line' }
+        if not entry then
+            local names = {}
+            for _, e in ipairs(store.buy) do names[#names + 1] = e.item end
+            Util.warn(('checkout REFUSED at %s: cart item "%s" not in catalog [%s]'):format(
+                tostring(storeKey), tostring(raw.item), table.concat(names, ', ')))
+            return { ok = false, error = 'unknown_item', item = tostring(raw.item) }
+        end
+        if qty < 1 or qty > MAX_LINE_QTY then
+            Util.warn(('checkout REFUSED at %s: qty %s for "%s" (raw type %s)'):format(
+                tostring(storeKey), tostring(raw.qty), entry.item, type(raw.qty)))
+            return { ok = false, error = 'bad_qty', item = entry.label }
         end
         if pstore and (entry.stock or 0) < qty then
             return { ok = false, error = 'out_of_stock', item = entry.label }
