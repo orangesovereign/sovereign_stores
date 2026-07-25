@@ -287,6 +287,41 @@ function PStores.setBranding(id, branding, actorCharid)
     return true
 end
 
+---Blip options for a store: its category's list plus the universal set.
+function PStores.blipOptions(category)
+    local out = {}
+    for _, o in ipairs((Config.BlipCatalog.categories or {})[category] or {}) do out[#out + 1] = o end
+    for _, o in ipairs(Config.BlipCatalog.universal or {}) do out[#out + 1] = o end
+    return out
+end
+
+---Resolve a store's chosen blip (or its category default) to sprite+color.
+function PStores.blipOf(s)
+    local options = PStores.blipOptions(s.category)
+    local chosen = s.branding and s.branding.blip_key
+    for _, o in ipairs(options) do
+        if o.key == chosen then return o end
+    end
+    return options[1] or { sprite = 'blip_shop_store' }
+end
+
+---Owner-selectable map blip, validated against the curated catalog.
+function PStores.setBlip(id, key, actorCharid)
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown' end
+    local valid = false
+    for _, o in ipairs(PStores.blipOptions(s.category)) do
+        if o.key == key then valid = true break end
+    end
+    if not valid then return false, 'bad_blip' end
+    s.branding = s.branding or {}
+    s.branding.blip_key = key
+    Db.execute('UPDATE sovereign_stores SET branding = ? WHERE id = ?', { json.encode(s.branding), s.id })
+    EventLog.write(s.id, 'blip_set', actorCharid, nil, { key = key })
+    republish()
+    return true
+end
+
 ---Owner-selectable cashier, validated against the curated config list.
 function PStores.setCashier(id, model, actorCharid)
     local s = cache[tonumber(id)]

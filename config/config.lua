@@ -95,3 +95,52 @@ Config.WeaponCatalog = {
     { name = 'WEAPON_BOW',                   label = 'Hunting Bow',           base = 38.00 },
     { name = 'WEAPON_MELEE_KNIFE',           label = 'Hunting Knife',         base = 8.00 },
 }
+
+-- ── Owner-selectable map blips (curated per charter category; sprite
+--    names verified in rdr3_discoveries/textures/blips). Gunsmith options
+--    carry the county's brown tint — RDR3 has no named brown, so we use
+--    BLIP_MODIFIER_MP_HOT_BLIP (COLOR_ORANGE), which reads burnt-brown on
+--    the parchment map. Swap the modifier here if the county ever wants a
+--    different shade. Keys must stay unique across the whole catalog. ──
+Config.BlipCatalog = {
+    universal = {
+        { key = 'store', label = 'Storefront',   sprite = 'blip_shop_store' },
+        { key = 'stall', label = 'Market Stall', sprite = 'blip_shop_market_stall' },
+        { key = 'shady', label = 'Back-Alley',   sprite = 'blip_shop_shady_store' },
+    },
+    categories = {
+        weapons    = {
+            { key = 'gunsmith',   label = 'Gunsmith',   sprite = 'blip_shop_gunsmith',   color = 'BLIP_MODIFIER_MP_HOT_BLIP' },
+            { key = 'blacksmith', label = 'Blacksmith', sprite = 'blip_shop_blacksmith', color = 'BLIP_MODIFIER_MP_HOT_BLIP' },
+        },
+        saloon     = { { key = 'saloon',    label = 'Saloon',       sprite = 'blip_saloon' } },
+        nightclub  = {
+            { key = 'nightsign', label = 'Saloon Sign',  sprite = 'blip_saloon' },
+            { key = 'photo',     label = 'Photo Studio', sprite = 'blip_photo_studio' },
+        },
+        restaurant = { { key = 'kitchen',   label = 'Saloon Fare',  sprite = 'blip_saloon' } },
+        butcher    = {
+            { key = 'butcher',   label = 'Butcher',      sprite = 'blip_shop_butcher' },
+            { key = 'trapper',   label = 'Trapper',      sprite = 'blip_shop_animal_trapper' },
+        },
+        fishing    = {
+            { key = 'tackle',    label = 'Tackle Shop',  sprite = 'blip_shop_tackle' },
+            { key = 'angler',    label = 'Fishing',      sprite = 'blip_mg_fishing' },
+        },
+        pelts      = {
+            { key = 'pelts',     label = 'Trapper',      sprite = 'blip_shop_animal_trapper' },
+            { key = 'peltsbutcher', label = 'Butcher',   sprite = 'blip_shop_butcher' },
+        },
+        animals    = {
+            { key = 'horse',     label = 'Horse Dealer', sprite = 'blip_shop_horse' },
+            { key = 'stable',    label = 'Stable',       sprite = 'blip_stable' },
+            { key = 'critters',  label = 'Trapper',      sprite = 'blip_shop_animal_trapper' },
+        },
+        mining     = { { key = 'forge',     label = 'Blacksmith',   sprite = 'blip_shop_blacksmith' } },
+        produce    = { { key = 'produce',   label = 'Market Stall', sprite = 'blip_shop_market_stall' } },
+        tailor     = {
+            { key = 'tailor',    label = 'Tailor',       sprite = 'blip_shop_tailor' },
+            { key = 'barber',    label = 'Barber',       sprite = 'blip_shop_barber' },
+        },
+    },
+}

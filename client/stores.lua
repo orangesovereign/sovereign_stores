@@ -59,8 +59,12 @@ end)
 local function addBlip(p)
     if not p.blip then return nil end
     local blip = BlipAddForCoords(1664425300, p.coords.x, p.coords.y, p.coords.z)
-    SetBlipSprite(blip, p.blip.sprite, false)
-    BlipAddModifier(blip, joaat('BLIP_MODIFIER_MP_COLOR_32'))
+    -- sprite may be a legacy numeric hash (NPC config) or a verified
+    -- texture name from the owner-picked catalog (docs: rdr3 blips list)
+    local sprite = p.blip.sprite
+    if type(sprite) == 'string' then sprite = joaat(sprite) end
+    SetBlipSprite(blip, sprite, false)
+    BlipAddModifier(blip, joaat(p.blip.color or 'BLIP_MODIFIER_MP_COLOR_32'))
     SetBlipName(blip, p.blip.label or p.label)
     return blip
 end

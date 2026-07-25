@@ -53,6 +53,7 @@ export default function Management({ initial }) {
     use_weapon_listing: 'Weapons go on the gun counter — use List Weapon.',
     unknown_weapon: "That weapon isn't in the county catalog.",
     bad_model: "That cashier isn't on the approved list.",
+    bad_blip: "That blip isn't on your charter's list.",
     not_in_storage: "The back room doesn't hold that many.",
     bad_qty: 'The quantity must be a whole number of at least 1.',
     bad_price: 'The price must be a plain number — no $ signs.',
@@ -727,6 +728,23 @@ function StorefrontView({ data, act }) {
         The map blip shows only while the store is open. Buyers see the tagline under your store
         name; the closed message greets anyone who visits outside hours.
       </p>
+
+      <div className="sheetcard__bar" style={{ marginTop: 18 }}>
+        <div><span className="sheetcard__eyebrow">How the map knows you</span>
+          <h2 className="sheetcard__title">Map Blip</h2></div>
+      </div>
+      <div className="pedgroup">
+        <div className="pedgroup__label">Shown while the store is open — options fit your charter</div>
+        <div className="pedgroup__row">
+          {(data.blipOptions || []).map((o) => (
+            <button key={o.key}
+              className={'pedpick' + (data.blipKey === o.key ? ' on' : '')}
+              onClick={() => act('set_blip', { key: o.key }, 'The map takes note.')}>
+              {o.label}{o.color ? <i className="pedpick__tint" /> : null}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="sheetcard__bar" style={{ marginTop: 18 }}>
         <div><span className="sheetcard__eyebrow">Who minds the counter</span>

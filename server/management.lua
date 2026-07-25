@@ -98,6 +98,8 @@ local function mgmtPayload(src, storeId)
         satchel = satchelOf(src),
         cashierPeds = Config.CashierPeds,
         weaponCatalog = Config.WeaponCatalog,
+        blipOptions = PStores.blipOptions(s.category),
+        blipKey = (s.branding and s.branding.blip_key) or (PStores.blipOptions(s.category)[1] or {}).key,
         shift = Shifts.view(charid, s.id),
         shiftRoster = Shifts.roster(s.id),
         notes = Notes.list(s.id),
@@ -130,6 +132,10 @@ end
 ACTIONS.set_cashier = function(s, src, charid, p)
     if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
     return PStores.setCashier(s.id, p.model, charid)
+end
+ACTIONS.set_blip = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
+    return PStores.setBlip(s.id, tostring(p.key), charid)
 end
 
 -- funds
