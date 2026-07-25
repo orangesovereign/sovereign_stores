@@ -75,4 +75,22 @@ function Db.requiredTables()
     return REQUIRED_TABLES
 end
 
+-- Columns added by dated upgrade blocks: verified at boot so a migration
+-- that silently failed (engine syntax differences — ledger Phase 3 D2)
+-- names itself instead of erroring at first use.
+local REQUIRED_COLUMNS <const> = {
+    { table = 'sovereign_store_stock', column = 'low_threshold', fix = 'sql/upgrades.sql · 2026-07-24b' },
+}
+
+---returns array of { table, column, fix } for columns that are missing
+function Db.verifyColumns()
+    local missing = {}
+    if not Db.available() then return missing end
+    for _, req in ipairs(REQUIRED_COLUMNS) do
+        local found = Db.scalar(('SHOW COLUMNS FROM `%s` LIKE ?'):format(req.table), { req.column })
+        if not found then missing[#missing + 1] = req end
+    end
+    return missing
+end
+
 Boot.db = true

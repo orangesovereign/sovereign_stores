@@ -28,6 +28,7 @@ local function buildReport()
         deps      = Bridge.checkDependencies(),
         oxmysql   = Db.available(),
         dbMissing = Db.available() and Db.verifySchema() or Db.requiredTables(),
+        dbColumns = Db.available() and Db.verifyColumns() or {},
         modules   = missingModules(),
         counts    = {},
     }
@@ -40,7 +41,7 @@ local function buildReport()
         report.counts.npcTypes, report.counts.npcSpots = types, spots
     end
     report.ok = (#report.config == 0) and report.oxmysql and (#report.dbMissing == 0)
-        and (#report.modules == 0)
+        and (#report.dbColumns == 0) and (#report.modules == 0)
     for _, dep in ipairs(report.deps) do
         if dep.required and dep.state ~= 'started' then report.ok = false end
     end
@@ -79,6 +80,10 @@ local function printReport(report)
         for _, tbl in ipairs(report.dbMissing) do
             Util.err(('  %s: %s — run sql/install.sql'):format(_U('diag_missing'), tbl))
         end
+    end
+    for _, col in ipairs(report.dbColumns or {}) do
+        Util.err(('  COLUMN MISSING: %s.%s — run %s (the upgrade did not apply)'):format(
+            col.table, col.column, col.fix))
     end
 
     if report.ok then Util.ok(_U('boot_ok', report.version))

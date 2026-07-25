@@ -96,12 +96,26 @@ function Stock.unshelve(storeId, item, qty, charid)
     return true
 end
 
----Low-stock alert level (G6). nil/0 clears the alert.
+---Low-stock alert level (G6). 0 clears the alert.
+---Two branches — a nil inside a params array truncates it (ledger D2),
+---so the clearing path uses a literal NULL instead.
 function Stock.setLowThreshold(storeId, item, threshold)
     threshold = math.floor(tonumber(threshold) or 0)
-    local n = Db.execute('UPDATE sovereign_store_stock SET low_threshold = ? WHERE store_id = ? AND item = ?',
-        { threshold > 0 and threshold or nil, storeId, item })
-    return (n or 0) > 0, 'not_on_shelf'
+    local n
+    if threshold > 0 then
+        n = Db.execute('UPDATE sovereign_store_stock SET low_threshold = ? WHERE store_id = ? AND item = ?',
+            { threshold, storeId, item })
+    else
+        n = Db.execute('UPDATE sovereign_store_stock SET low_threshold = NULL WHERE store_id = ? AND item = ?',
+            { storeId, item })
+    end
+    if n == nil then return false, 'db' end          -- SQL failed (console names it)
+    if n > 0 then return true end
+    -- matched-but-unchanged also reports 0 on some drivers: verify the row
+    local rows = Db.query('SELECT 1 FROM sovereign_store_stock WHERE store_id = ? AND item = ? LIMIT 1',
+        { storeId, item })
+    if rows and rows[1] then return true end
+    return false, 'not_on_shelf'
 end
 
 function Stock.setPrice(storeId, item, price)

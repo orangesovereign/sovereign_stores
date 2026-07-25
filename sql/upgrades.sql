@@ -23,9 +23,22 @@ CREATE TABLE IF NOT EXISTS `sovereign_store_events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─────────────────────────────────────────────────────────────────────
--- 2026-07-24b · Phase 3 (staff systems)
--- Per-item low-stock threshold on the shelf. Idempotent: errors about a
--- duplicate column mean it's already done — ignore and move on.
+-- 2026-07-24b · Phase 3 (staff systems) — CORRECTED 2026-07-25
+-- Per-item low-stock threshold on the shelf.
+-- The original block used `ADD COLUMN IF NOT EXISTS`, which is
+-- MariaDB-only — on MySQL it errors and the column never lands (ledger
+-- Phase 3 D2). This form checks information_schema first and runs clean
+-- on BOTH engines, truly idempotent: re-runs print no errors at all.
 -- ─────────────────────────────────────────────────────────────────────
-ALTER TABLE `sovereign_store_stock`
-    ADD COLUMN IF NOT EXISTS `low_threshold` INT NULL DEFAULT NULL AFTER `category`;
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sovereign_store_stock'
+      AND COLUMN_NAME = 'low_threshold'
+);
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE `sovereign_store_stock` ADD COLUMN `low_threshold` INT NULL DEFAULT NULL AFTER `category`',
+    'SELECT 1');
+PREPARE upgrade_20260724b FROM @ddl;
+EXECUTE upgrade_20260724b;
+DEALLOCATE PREPARE upgrade_20260724b;
