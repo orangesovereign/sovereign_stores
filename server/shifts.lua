@@ -93,6 +93,7 @@ function Shifts.clockIn(src, storeId)
         { storeId, charid })
     active[charid] = { storeId = storeId, src = src, clockIn = os.time(), verified = 0, missed = 0, row = row }
     EventLog.write(storeId, 'clock_in', charid, nil, nil)
+    TriggerEvent('sovereign_stores:employeeClockIn', { store = storeId, charid = charid })
     Npc.publishAll()   -- the NPC cashier steps aside
     return true
 end

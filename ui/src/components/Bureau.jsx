@@ -1,8 +1,8 @@
 /* =====================================================================
    SOVEREIGN STORES · COMMERCE BUREAU (docs/04 screen 3)
    Server administration: directory, store detail + actions, government
-   fund, event log. Tax Administration / Analytics / Inactivity Monitor
-   arrive with the Phase 4 schedulers.
+   fund, event log, tax administration, inactivity monitor, county
+   letters. Commerce Analytics arrives in Phase 5.
    ===================================================================== */
 
 import { useEffect, useRef, useState } from 'react'
@@ -17,9 +17,10 @@ const SECTIONS = [
   { key: 'detail', label: 'Store Detail' },
   { key: 'fund', label: 'Government Fund' },
   { key: 'events', label: 'Event Log' },
-  { key: 'tax', label: 'Tax Administration', soon: true },
+  { key: 'tax', label: 'Tax Administration' },
+  { key: 'inactivity', label: 'Inactivity Monitor' },
+  { key: 'letters', label: 'County Letters' },
   { key: 'analytics', label: 'Commerce Analytics', soon: true },
-  { key: 'inactivity', label: 'Inactivity Monitor', soon: true },
 ]
 
 export default function Bureau({ initial }) {
@@ -28,6 +29,9 @@ export default function Bureau({ initial }) {
   const [detail, setDetail] = useState(null)
   const [fund, setFund] = useState(null)
   const [events, setEvents] = useState(null)
+  const [tax, setTax] = useState(null)
+  const [inactivity, setInactivity] = useState(null)
+  const [letters, setLetters] = useState(null)
   const [assigning, setAssigning] = useState(false)
   const [q, setQ] = useState('')
   const [toast, setToast] = useState(null)
@@ -54,8 +58,24 @@ export default function Bureau({ initial }) {
     if (SECTIONS.find((s) => s.key === key)?.soon) return
     if (key === 'fund') { const r = await post('adminFund'); if (r?.ok) setFund(r) }
     if (key === 'events') { const r = await post('adminEvents'); if (r?.ok) setEvents(r) }
+    if (key === 'tax') { const r = await post('adminTax'); if (r?.ok) setTax(r) }
+    if (key === 'inactivity') { const r = await post('adminInactivity'); if (r?.ok) setInactivity(r) }
+    if (key === 'letters') { const r = await post('adminLetters'); if (r?.ok) setLetters(r) }
     if (key === 'directory') refreshOverview()
     setSection(key)
+  }
+
+  /* Force a scheduler pass now. The cycles are DB-dated, so running one
+     early is exactly what the county clerk does — not a debug hack. */
+  const runCycle = async (which) => {
+    const res = await post('adminRunCycle', { which })
+    if (!res?.ok) return say('bad', 'The sweep could not run.')
+    const r = res.report || {}
+    say('good', which === 'inactivity'
+      ? `Absence sweep: ${r.warned || 0} warned · ${r.seized || 0} seized.`
+      : `Collection: ${r.paid || 0} paid · ${r.delinquent || 0} delinquent · ${r.seized || 0} seized.`)
+    await openSection(which === 'inactivity' ? 'inactivity' : 'tax')
+    refreshOverview()
   }
 
   const act = async (id, action, payload, okMsg) => {
@@ -106,7 +126,7 @@ export default function Bureau({ initial }) {
               >
                 <span>{s.label}</span>
                 {s.key === 'directory' && ov?.tiles && <i className="rail__badge">{ov.tiles.stores}</i>}
-                {s.soon && <i className="rail__soon">Phase 4</i>}
+                {s.soon && <i className="rail__soon">Phase 5</i>}
               </button>
             ))}
           </nav>
@@ -172,6 +192,128 @@ export default function Bureau({ initial }) {
           {section === 'detail' && (detail?.ok
             ? <Detail data={detail} act={act} say={say} />
             : <div className="empty">Pick a store from the directory.</div>)}
+
+          {section === 'tax' && tax?.ok && (
+            <>
+              <div className="tiles">
+                <StatTile icon={<IconBank />} label="Treasury" value={fmtMoney(tax.fund)} />
+                <StatTile icon={<IconAlert />} label="Delinquent" value={tax.delinquent}
+                  sub={`${tax.graceHours}h to settle`} tone={tax.delinquent > 0 ? "danger" : undefined} />
+                <StatTile icon={<IconClock />} label="Cannot Cover" value={tax.atRisk}
+                  sub="reserve + operating short" />
+              </div>
+              <div className="sheetcard">
+                <div className="sheetcard__bar">
+                  <div><span className="sheetcard__eyebrow">Every taxable charter</span>
+                    <h2 className="sheetcard__title">Assessments</h2></div>
+                  <button className="ghost" onClick={() => runCycle('tax')}>Run collection now</button>
+                </div>
+                {tax.rows.length === 0 ? (
+                  <div className="empty">No store owes the county anything.</div>
+                ) : (
+                  <table className="dtable">
+                    <thead><tr><th>Code</th><th>Store</th><th>Owner</th><th>Due</th><th>Amount</th><th>Reserve</th><th>State</th></tr></thead>
+                    <tbody>
+                      {tax.rows.map((r) => (
+                        <tr key={r.id} className="norow" onClick={() => openDetail(r.id)}>
+                          <td>{r.code ? <span className="codechip">{r.code}</span> : '—'}</td>
+                          <td><b>{r.name}</b></td>
+                          <td className="dim">{r.owner || '—'}</td>
+                          <td className="dim">{r.dueDate || '—'}</td>
+                          <td className="num">{fmtMoney(r.amount)}</td>
+                          <td className={'num ' + (r.covered ? 'dim' : 'neg')}>{fmtMoney(r.reserve)}</td>
+                          <td>
+                            <span className={'chip chip--' + (r.state === 'delinquent' ? 'danger' : r.covered ? 'open' : 'warn')}>
+                              {r.state === 'delinquent' ? 'DELINQUENT' : r.covered ? 'COVERED' : 'SHORT'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="sheetcard">
+                <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Collected</span>
+                  <h2 className="sheetcard__title">Collection History</h2></div></div>
+                {tax.history.length === 0 ? <div className="empty">Nothing collected yet.</div> : (
+                  <table className="dtable"><tbody>
+                    {tax.history.map((h, i) => (
+                      <tr key={i} className="norow">
+                        <td><b>{h.store_name || ('#' + h.store_id)}</b></td>
+                        <td className="num neg">{fmtMoney(h.amount)}</td>
+                        <td className="dim">{fmtAgo(h.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                )}
+              </div>
+            </>
+          )}
+
+          {section === 'inactivity' && inactivity?.ok && (
+            <div className="sheetcard">
+              <div className="sheetcard__bar">
+                <div><span className="sheetcard__eyebrow">
+                  Warning at {inactivity.warnDays} days · charter revoked at {inactivity.seizeDays}</span>
+                  <h2 className="sheetcard__title">Absent Owners</h2></div>
+                <button className="ghost" onClick={() => runCycle('inactivity')}>Run absence sweep</button>
+              </div>
+              {inactivity.rows.length === 0 ? (
+                <div className="empty">Every charter has been minded recently.</div>
+              ) : (
+                <table className="dtable">
+                  <thead><tr><th>Code</th><th>Store</th><th>Away</th><th>Days left</th><th>State</th><th></th></tr></thead>
+                  <tbody>
+                    {inactivity.rows.map((r) => (
+                      <tr key={r.id} className="norow">
+                        <td>{r.code ? <span className="codechip">{r.code}</span> : '—'}</td>
+                        <td><b>{r.name}</b></td>
+                        <td className="num">{r.days}d</td>
+                        <td className={'num ' + (r.daysLeft <= 5 ? 'neg' : 'dim')}>{r.daysLeft}</td>
+                        <td>
+                          <span className={'chip chip--' + (r.exempt ? 'open' : r.daysLeft <= 5 ? 'danger' : 'warn')}>
+                            {r.exempt ? 'EXEMPT' : r.daysLeft <= 5 ? 'AT RISK' : 'WARNED'}
+                          </span>
+                        </td>
+                        <td><button onClick={() => openDetail(r.id)}>Open</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {section === 'letters' && letters?.ok && (
+            <div className="sheetcard">
+              <div className="sheetcard__bar">
+                <div><span className="sheetcard__eyebrow">
+                  Post office: {letters.postoffice} · {letters.queued} awaiting delivery</span>
+                  <h2 className="sheetcard__title">County Letters</h2></div>
+              </div>
+              <p className="mgmt__hint">
+                Every notice the county writes is recorded here first, then handed to the post
+                office. While its script-mail door is still shut, letters wait in the queue and
+                owners are told in person — nothing is ever lost.
+              </p>
+              {letters.rows.length === 0 ? <div className="empty">The county has written nothing yet.</div> : (
+                <table className="dtable">
+                  <thead><tr><th>To</th><th>Subject</th><th>State</th><th>Written</th></tr></thead>
+                  <tbody>
+                    {letters.rows.map((l) => (
+                      <tr key={l.id} className="norow">
+                        <td className="dim">#{l.recipient_charid}</td>
+                        <td><b>{l.subject}</b></td>
+                        <td><span className={'chip chip--' + (l.status === 'sent' ? 'open' : 'warn')}>{l.status.toUpperCase()}</span></td>
+                        <td className="dim">{fmtAgo(l.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
           {section === 'fund' && fund?.ok && (
             <div className="sheetcard">

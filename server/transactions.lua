@@ -81,6 +81,46 @@ local function buildSellView(src, store)
     return view
 end
 
+---Player-store Sell tab: one row per open buy order, carrying the order
+---id so the fill can't be redirected, plus whatever the player actually
+---holds of that item.
+local function buyOrderView(storeId)
+    local view = {}
+    for _, o in ipairs(BuyOrders.open(storeId)) do
+        local def = Bridge.inv.getDef(o.item)
+        view[#view + 1] = {
+            orderId = o.id,
+            item = o.item,
+            label = (def and def.label) or o.item,
+            price = o.price,
+            category = 'general',
+            wanted = o.wanted,
+            stacks = {},           -- filled per-viewer below
+        }
+    end
+    return view
+end
+
+---Attach the viewer's carried stacks to a buy-order view.
+local function withCarried(src, view)
+    if #view == 0 then return view end
+    local inv = Bridge.inv.getAll(src)
+    for _, entry in ipairs(view) do
+        local stacks = {}
+        for _, st in pairs(inv) do
+            if st.name == entry.item then
+                stacks[#stacks + 1] = {
+                    qty = math.min(st.count or 0, entry.wanted or 99),
+                    percentage = st.isDegradable and (tonumber(st.percentage) or 0) or nil,
+                    metadata = st.metadata or {},
+                }
+            end
+        end
+        entry.stacks = stacks
+    end
+    return view
+end
+
 local function storePayload(src, store)
     return {
         ok = true,
@@ -91,7 +131,8 @@ local function storePayload(src, store)
             closed = store.closed or false, closedMessage = store.closedMessage,
             categories = store.categories,
             buy = store.closed and {} or store.buy,
-            sell = store.closed and {} or buildSellView(src, store),
+            sell = store.closed and {}
+                or (store.playerStore and withCarried(src, store.sell) or buildSellView(src, store)),
         },
         money = Bridge.money.get(src),
     }
@@ -127,7 +168,7 @@ local function playerStoreView(s)
         est = 'SOVEREIGN COUNTY CHARTER' .. (s.code and (' · ' .. s.code) or ''),
         categories = #cats > 0 and cats or { { key = 'general', label = 'Goods' } },
         buy = catalog,
-        sell = {},   -- buy orders arrive in Phase 4
+        sell = buyOrderView(s.id),
         closed = s.status ~= 'open',
         closedMessage = (s.branding and s.branding.closed_message) or nil,
     }
@@ -243,6 +284,14 @@ local function checkout(src, storeKey, cart)
             Ledger.write(pstore.id, 'operating', 'sale', delivered, {
                 actor = Bridge.getCharId(src), note = ('%d line(s)'):format(#lines),
             })
+            Webhooks.fire(pstore.id, 'sale', {
+                title = _U('wh_sale'), color = 0x8A5C2E,
+                fields = {
+                    { name = _U('wh_store'), value = pstore.name },
+                    { name = _U('wh_amount'), value = ('$%.2f'):format(delivered) },
+                    { name = _U('wh_item'), value = ('%d line(s)'):format(#lines) },
+                },
+            })
         else
             Fund.credit('npc_sale', delivered, nil, store.key)
         end
@@ -302,11 +351,35 @@ local function sellStack(src, store, req)
     return Util.round2(unit * qty), nil, qty
 end
 
+---Player stores buy through BUY ORDERS (D5): same Sell tab, different
+---counter. Price and remaining quantity are read from the order row, so
+---nothing the client sends can move the number.
+local function sellToPlayerStore(src, pstore, entries)
+    local total, sold = 0, 0
+    local lastErr = nil
+    for _, req in ipairs(entries) do
+        local paid, err = BuyOrders.fill(src, pstore.id, tonumber(req.orderId), tonumber(req.qty) or 0)
+        if paid then
+            total = Util.round2(total + paid)
+            sold = sold + 1
+        else
+            lastErr = err
+            Util.debug(('buy order refused (#%s): %s'):format(tostring(req.orderId), tostring(err)))
+        end
+    end
+    if total > 0 then
+        Bridge.notify(src, _U('sold_total', total))
+    end
+    return { ok = sold > 0, total = total, error = sold == 0 and (lastErr or 'bad_line') or nil,
+             money = Bridge.money.get(src) }
+end
+
 local function sellToStore(src, storeKey, entries)
-    local store, err = guard(src, storeKey)
+    local store, err, pstore = guard(src, storeKey)
     if not store then return { ok = false, error = err } end
-    if store.closed or store.playerStore then return { ok = false, error = 'closed' } end
+    if store.closed then return { ok = false, error = 'closed' } end
     if type(entries) ~= 'table' or #entries == 0 then return { ok = false, error = 'empty' } end
+    if pstore then return sellToPlayerStore(src, pstore, entries) end
 
     local total, sold = 0, 0
     for _, req in ipairs(entries) do

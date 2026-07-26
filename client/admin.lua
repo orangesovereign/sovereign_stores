@@ -33,9 +33,12 @@ RegisterNUICallback('adminClose', function(_, cb)
 end)
 
 local FORWARD = {
-    adminOverview = { 'sovereign_stores:admin:overview' },
-    adminFund     = { 'sovereign_stores:admin:fund' },
-    adminEvents   = { 'sovereign_stores:admin:events' },
+    adminOverview   = { 'sovereign_stores:admin:overview' },
+    adminFund       = { 'sovereign_stores:admin:fund' },
+    adminEvents     = { 'sovereign_stores:admin:events' },
+    adminTax        = { 'sovereign_stores:admin:tax' },
+    adminInactivity = { 'sovereign_stores:admin:inactivity' },
+    adminLetters    = { 'sovereign_stores:admin:letters' },
 }
 
 for nuiName, def in pairs(FORWARD) do
@@ -45,6 +48,12 @@ for nuiName, def in pairs(FORWARD) do
         end)
     end)
 end
+
+RegisterNUICallback('adminRunCycle', function(data, cb)
+    CreateThread(function()
+        cb(await('sovereign_stores:admin:runCycle', data.which) or { ok = false, error = 'no_response' })
+    end)
+end)
 
 RegisterNUICallback('adminStore', function(data, cb)
     CreateThread(function()

@@ -104,6 +104,9 @@ local function mgmtPayload(src, storeId)
         shiftRoster = Shifts.roster(s.id),
         notes = Notes.list(s.id),
         lowStock = Shifts.lowStock(s.id),
+        buyOrders = BuyOrders.list(s.id),
+        tax = Taxes.quote(s),
+        webhook = { url = s.webhook_url, events = s.webhook_events or {}, types = Webhooks.eventTypes() },
         staff = staff,
         maxEmployees = Config.MaxEmployees,
         ledger = Ledger.history(s.id, 'operating', 20),
@@ -212,6 +215,31 @@ ACTIONS.storage_deposit = function(s, src, charid, p)
     end
     return true
 end
+-- buy orders (D5) — STOCK flag posts them, FUNDS_WITHDRAW is implied by
+-- the fact that filling them spends the operating ledger
+ACTIONS.buy_order_new = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    return BuyOrders.create(s.id, p.item, p.price, p.qty, charid)
+end
+ACTIONS.buy_order_toggle = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    return BuyOrders.setActive(s.id, tonumber(p.id), p.active == true, charid)
+end
+ACTIONS.buy_order_remove = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOCK) then return false, 'no_permission' end
+    return BuyOrders.remove(s.id, tonumber(p.id), charid)
+end
+
+-- webhooks (I2) — storefront authority, it's the store's public voice
+ACTIONS.webhook_url = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
+    return Webhooks.setUrl(s.id, p.url, charid)
+end
+ACTIONS.webhook_toggle = function(s, src, charid, p)
+    if not PStores.can(s.id, charid, Perms.STOREFRONT) then return false, 'no_permission' end
+    return Webhooks.toggleEvent(s.id, tostring(p.event), p.on == true, charid)
+end
+
 -- shift desk (G1-G4, G6) — any staff role
 ACTIONS.clock_in = function(s, src, charid)
     return Shifts.clockIn(src, s.id)

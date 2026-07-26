@@ -45,6 +45,18 @@ end
 
 function PStores.get(id) return cache[tonumber(id)] end
 function PStores.all() return cache end
+
+---Re-read one store from the database into the cache. The Phase 4
+---schedulers write tax/status columns in SQL (so the arithmetic happens
+---where the dates live); this pulls the result back into memory.
+function PStores.refresh(id)
+    id = tonumber(id)
+    local rows = Db.query('SELECT * FROM sovereign_stores WHERE id = ? LIMIT 1', { id })
+    local row = rows and rows[1]
+    if not row then return nil end
+    cache[id] = decode(row)
+    return cache[id]
+end
 function PStores.staff(id) return roster[tonumber(id)] or {} end
 
 -- ── Roles & permissions ─────────────────────────────────────────────
@@ -266,7 +278,15 @@ function PStores.setStatus(id, open, actorCharid)
     Db.execute('UPDATE sovereign_stores SET status = ? WHERE id = ?', { status, s.id })
     s.status = status
     EventLog.write(s.id, open and 'open' or 'close', actorCharid, nil, {})
-    TriggerEvent(open and 'sovereign_stores:storeOpened' or 'sovereign_stores:storeClosed', { store = s.id })
+    TriggerEvent(open and 'sovereign_stores:storeOpened' or 'sovereign_stores:storeClosed',
+        { store = s.id, name = s.name, code = s.code })
+    if Webhooks then
+        Webhooks.fire(s.id, 'storefront', {
+            title = open and _U('wh_opened') or _U('wh_closed'),
+            color = open and 0x7D8D5C or 0x6A5D4C,
+            fields = { { name = _U('wh_store'), value = s.name } },
+        })
+    end
     republish()
     return true
 end

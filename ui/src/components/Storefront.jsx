@@ -23,6 +23,11 @@ const ERRORS = {
   job_locked: "This store doesn't serve your line of work.",
   stack_gone: 'Those goods are no longer in your satchel.',
   too_worn: 'The clerk turns that up — too far gone.',
+  store_broke: "This store can't cover that right now.",
+  order_paused: 'That order has been paused.',
+  order_filled: 'That order is already filled.',
+  storage_full: "The store's back room is full.",
+  not_carried: "You aren't carrying that.",
   no_response: 'The clerk seems distracted — try again.',
 }
 const errText = (res) => {
@@ -113,7 +118,8 @@ export default function Storefront({ view, setView }) {
     setBusy(true)
     const res = await post('sell', {
       store: store.key,
-      entries: [{ item: entry.item, qty, percentage: stack.percentage ?? null }],
+      // orderId is set on player-store rows (a buy order); NPC rows omit it
+      entries: [{ item: entry.item, qty, percentage: stack.percentage ?? null, orderId: entry.orderId }],
     })
     if (res?.ok) {
       say('good', `Sold — ${money(res.total)} received.`)
@@ -291,7 +297,11 @@ export default function Storefront({ view, setView }) {
 
       {tab === 'sell' && (
         <div className="selling">
-          <div className="selling__note">The clerk buys the following — condition inspected at the counter.</div>
+          <div className="selling__note">
+            {store.playerStore
+              ? 'This store is buying the following — paid straight from its ledger.'
+              : 'The clerk buys the following — condition inspected at the counter.'}
+          </div>
           {store.sell.map((entry) =>
             entry.stacks.length > 0 ? (
               entry.stacks.map((stack, i) => (
@@ -328,6 +338,7 @@ function SellRow({ entry, stack, busy, onSell }) {
           <span className="sellrow__label">{entry.label}</span>
           <span className="sellrow__meta">
             {money(entry.price)} each{entry.minCondition ? ` · ${entry.minCondition}%+ condition` : ''}
+            {entry.wanted ? ` · wants ${entry.wanted}` : ''}
           </span>
         </div>
         <span className="sellrow__nonetag">None carried</span>

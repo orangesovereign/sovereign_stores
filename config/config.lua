@@ -30,14 +30,34 @@ Config.StorageSlots    = 30            -- default back-room capacity per store
 -- Admin layer (server-wide firehose). Empty string disables.
 Config.AdminWebhook = ''
 
--- ── Schedulers (Phase 4 consumes; seeded here so ops can plan) ──────
+-- ── Schedulers ──────────────────────────────────────────────────────
+-- All cycles are DB-dated, so a restart never skips or double-charges:
+-- the worker simply catches up on anything now due.
 Config.Tax = {
-    GraceHours   = 72,     -- delinquency deadline after a failed collection
+    GraceHours    = 72,    -- delinquency deadline after a failed collection
+    CheckMinutes  = 15,    -- how often the collector sweeps for due stores
+    PeriodDays    = 30,    -- one "month" of county time between collections
+    -- Collection pulls the tax reserve first, then covers any shortfall from
+    -- the operating ledger — both are the store's money, and a store that
+    -- CAN pay should never fall delinquent on bookkeeping alone.
+    UseOperatingShortfall = true,
 }
 Config.Inactivity = {
     WarnDays        = 30,  -- flag on dashboard + letter
     RepossessDays   = 45,  -- automatic repossession
     CoOwnerResets   = false, -- owner-based rule by default (design §6)
+    CheckMinutes    = 60,  -- absence sweep interval
+}
+
+-- ── Wages (Phase 3 clock settles these at clock-out) ────────────────
+Config.Wages = {
+    DailyMinMinutes = 120, -- verified minutes a daily-rate shift must reach
+}
+
+-- ── Buy orders (stores buying FROM players) ─────────────────────────
+Config.BuyOrders = {
+    MaxPerStore = 12,
+    MaxQtyEach  = 999,
 }
 
 -- ── Presence heartbeat (Phase 3 consumes) ───────────────────────────

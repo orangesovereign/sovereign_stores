@@ -25,6 +25,7 @@ const SECTIONS = [
   { key: 'overview', label: 'Overview' },
   { key: 'desk', label: 'Shift Desk' },
   { key: 'stock', label: 'Stock & Storage', need: 1 },
+  { key: 'orders', label: 'Buy Orders', need: 1 },
   { key: 'staff', label: 'Employees', boss: true },
   { key: 'ledgers', label: 'Ledgers' },
   { key: 'storefront', label: 'Storefront', need: 16 },
@@ -54,6 +55,12 @@ export default function Management({ initial }) {
     unknown_weapon: "That weapon isn't in the county catalog.",
     bad_model: "That cashier isn't on the approved list.",
     bad_blip: "That blip isn't on your charter's list.",
+    bad_url: 'A webhook URL must start with https://.',
+    bad_event: "That isn't an event this store can announce.",
+    order_cap: 'This store already has all the standing orders it can hold.',
+    no_weapon_orders: "Weapons can't be bought over the counter — only sold.",
+    unknown_order: 'That order is gone.',
+    store_broke: "The operating ledger can't cover that.",
     not_in_storage: "The back room doesn't hold that many.",
     bad_qty: 'The quantity must be a whole number of at least 1.',
     bad_price: 'The price must be a plain number — no $ signs.',
@@ -142,6 +149,7 @@ export default function Management({ initial }) {
           {section === 'overview' && <Overview data={data} />}
           {section === 'desk' && <DeskView data={data} act={act} me={me} isBoss={isBoss} />}
           {section === 'stock' && <StockView data={data} act={act} me={me} isBoss={isBoss} />}
+          {section === 'orders' && <OrdersView data={data} act={act} me={me} isBoss={isBoss} />}
           {section === 'staff' && isBoss && <StaffView data={data} act={act} me={me} />}
           {section === 'ledgers' && <LedgersView data={data} act={act} me={me} isBoss={isBoss} />}
           {section === 'storefront' && <StorefrontView data={data} act={act} />}
@@ -166,25 +174,49 @@ function Overview({ data }) {
       <div className="tiles">
         <StatTile icon={<IconLedger />} label="Operating Ledger" value={fmtMoney(s.balances.operating)} />
         <StatTile icon={<IconBank />} label="Tax Reserve" value={fmtMoney(s.balances.tax)}
-          sub={s.taxRate > 0 ? `${s.taxRate}% of ${fmtMoney(s.purchasePrice)} monthly` : 'no levy set'} />
+          sub={data.tax && data.tax.amount > 0
+            ? `${fmtMoney(data.tax.amount)} due ${data.tax.dueDate || 'soon'}`
+            : 'no levy set'} />
         <StatTile icon={<IconPulse />} label="Today's Sales" value={fmtMoney(data.today.sales)}
           sub={`${data.today.orders} customer order${data.today.orders === 1 ? '' : 's'}`} />
         <StatTile icon={<IconClock />} label="On Shift" value={(data.shiftRoster || []).length}
           sub={`${data.staff.length} of ${data.maxEmployees + 1} positions filled`} />
       </div>
 
-      {(data.lowStock || []).length > 0 && (
-        <div className="sheetcard sheetcard--notice">
-          <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Needs attention</span>
-            <h2 className="sheetcard__title">Store Notices</h2></div></div>
-          {data.lowStock.map((r) => (
-            <div className="noticerow" key={r.item}>
-              <span className="noticerow__flag">Low stock</span>
-              <span>{r.item} — {r.quantity} left (alert at {r.low_threshold})</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {(() => {
+        const notices = []
+        const tax = data.tax || {}
+        if (tax.state === 'delinquent') {
+          notices.push({ key: 'tax', flag: 'Tax delinquent',
+            text: `${fmtMoney(tax.amount)} owed — the county collects again shortly. Deposit into the tax reserve.` })
+        } else if (tax.amount > 0 && (tax.reserve || 0) < tax.amount) {
+          notices.push({ key: 'reserve', flag: 'Reserve short',
+            text: `${fmtMoney(tax.amount - (tax.reserve || 0))} still needed before ${tax.dueDate || 'the due date'}` })
+        }
+        for (const r of data.lowStock || []) {
+          notices.push({ key: 'low-' + r.item, flag: 'Low stock',
+            text: `${r.item} — ${r.quantity} left (alert at ${r.low_threshold})` })
+        }
+        for (const o of (data.buyOrders || [])) {
+          if (o.active !== 1 && o.qty_filled < o.qty_wanted) {
+            notices.push({ key: 'order-' + o.id, flag: 'Order paused',
+              text: `${o.item} — ${o.qty_filled}/${o.qty_wanted} filled` })
+          }
+        }
+        if (notices.length === 0) return null
+        return (
+          <div className="sheetcard sheetcard--notice">
+            <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Needs attention</span>
+              <h2 className="sheetcard__title">Store Notices</h2></div></div>
+            {notices.map((n) => (
+              <div className="noticerow" key={n.key}>
+                <span className="noticerow__flag">{n.flag}</span>
+                <span>{n.text}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       <div className="cols2">
         <div className="sheetcard">
@@ -222,6 +254,101 @@ function Overview({ data }) {
         </div>
       </div>
     </>
+  )
+}
+
+/* ── Buy Orders (D5) ──────────────────────────────────────────────── */
+
+function OrdersView({ data, act, me, isBoss }) {
+  const canStock = isBoss || hasPerm(me.permissions, 1)
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ item: '', price: '', qty: '' })
+  const orders = data.buyOrders || []
+  const funds = data.store.balances.operating
+
+  const submit = () => {
+    setAdding(false)
+    act('buy_order_new', { item: form.item.trim(), price: form.price, qty: form.qty }, 'Order posted.')
+    setForm({ item: '', price: '', qty: '' })
+  }
+
+  return (
+    <div className="sheetcard">
+      <div className="sheetcard__bar">
+        <div><span className="sheetcard__eyebrow">What this store buys</span>
+          <h2 className="sheetcard__title">Buy Orders</h2></div>
+        {canStock && <button className="ghost" onClick={() => setAdding(true)}>Post an Order</button>}
+      </div>
+
+      <p className="mgmt__hint">
+        Sellers fill these at your counter, paid straight from the operating ledger
+        ({fmtMoney(funds)} on hand). An order pauses itself the moment the ledger
+        can't cover the next unit — the store never promises money it doesn't have.
+      </p>
+
+      {orders.length === 0 ? (
+        <div className="empty">No standing orders.</div>
+      ) : (
+        <table className="dtable">
+          <thead><tr><th>Item</th><th>Price</th><th>Progress</th><th>State</th><th></th></tr></thead>
+          <tbody>
+            {orders.map((o) => {
+              const done = o.qty_filled >= o.qty_wanted
+              const broke = !done && o.active === 1 && funds < Number(o.unit_price)
+              return (
+                <tr key={o.id} className="norow">
+                  <td><b>{o.item}</b></td>
+                  <td className="num">{fmtMoney(o.unit_price)}</td>
+                  <td className="num">{o.qty_filled} / {o.qty_wanted}</td>
+                  <td>
+                    <span className={'chip chip--' + (done ? 'closed' : o.active === 1 ? (broke ? 'warn' : 'open') : 'closed')}>
+                      {done ? 'FILLED' : o.active === 1 ? (broke ? 'UNFUNDED' : 'ACTIVE') : 'PAUSED'}
+                    </span>
+                  </td>
+                  <td>
+                    {canStock && (
+                      <div className="actions actions--tight">
+                        {!done && (
+                          <button onClick={() => act('buy_order_toggle', { id: o.id, active: o.active !== 1 },
+                            o.active === 1 ? 'Paused.' : 'Back on the board.')}>
+                            {o.active === 1 ? 'Pause' : 'Resume'}
+                          </button>
+                        )}
+                        <button onClick={() => act('buy_order_remove', { id: o.id }, 'Taken down.')}>✕</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {adding && (
+        <div className="modal__scrim" onClick={() => setAdding(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__eyebrow">Standing order</div>
+            <h2 className="modal__title">Post a Buy Order</h2>
+            <div className="form">
+              <label>Item name (as the database knows it)
+                <input value={form.item} placeholder="aligatormeat"
+                  onChange={(e) => setForm({ ...form, item: e.target.value })} /></label>
+              <div className="form__row">
+                <label>Price each<input value={form.price} placeholder="2.00"
+                  onChange={(e) => setForm({ ...form, price: e.target.value })} /></label>
+                <label>Quantity wanted<input value={form.qty} placeholder="40"
+                  onChange={(e) => setForm({ ...form, qty: e.target.value })} /></label>
+              </div>
+            </div>
+            <div className="modal__foot">
+              <button onClick={() => setAdding(false)}>Cancel</button>
+              <button className="primary" onClick={submit}>Post the order</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -728,6 +855,39 @@ function StorefrontView({ data, act }) {
         The map blip shows only while the store is open. Buyers see the tagline under your store
         name; the closed message greets anyone who visits outside hours.
       </p>
+
+      <div className="sheetcard__bar" style={{ marginTop: 18 }}>
+        <div><span className="sheetcard__eyebrow">Word to your own channel</span>
+          <h2 className="sheetcard__title">Store Webhook</h2></div>
+      </div>
+      <div className="actions">
+        <AskInline label={(data.webhook && data.webhook.url) ? 'Change URL' : 'Set webhook URL'}
+          placeholder="https://…"
+          onSubmit={(v) => act('webhook_url', { url: v }, 'Webhook set.')} />
+        {data.webhook && data.webhook.url && (
+          <button onClick={() => act('webhook_url', { url: '' }, 'Webhook cleared.')}>Clear</button>
+        )}
+      </div>
+      {data.webhook && data.webhook.url ? (
+        <div className="pedgroup">
+          <div className="pedgroup__label">Which events this store announces</div>
+          <div className="pedgroup__row">
+            {(data.webhook.types || []).map((t) => {
+              const on = data.webhook.events && data.webhook.events[t] === true
+              return (
+                <button key={t} className={'pedpick' + (on ? ' on' : '')}
+                  onClick={() => act('webhook_toggle', { event: t, on: !on }, on ? 'Silenced.' : 'Announcing.')}>
+                  {t}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="mgmt__hint">
+          No webhook set — the county's own log still records everything either way.
+        </p>
+      )}
 
       <div className="sheetcard__bar" style={{ marginTop: 18 }}>
         <div><span className="sheetcard__eyebrow">How the map knows you</span>

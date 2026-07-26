@@ -47,7 +47,8 @@ local function overview()
             stores = stores, open = open,
             fund = Fund.balance(),
             delinquent = delinquent,
-            inactivityFlags = 0,   -- populated by the Phase 4 inactivity scheduler
+            inactivityFlags = Inactivity.flagCount(),
+            lettersQueued = Letters.queuedCount(),
         },
         directory = directoryRows(),
     }
@@ -93,11 +94,19 @@ local function storeDetail(id)
 end
 
 local ACTIONS = {
-    assign_owner = function(s, p, actor) return PStores.assignOwner(s.id, tonumber(p.charid), actor) end,
+    assign_owner = function(s, p, actor)
+        local ok, err = PStores.assignOwner(s.id, tonumber(p.charid), actor)
+        if ok then Taxes.startCycle(s.id) end     -- the clock starts with ownership
+        return ok, err
+    end,
     transfer     = function(s, p, actor) return PStores.transferOwner(s.id, tonumber(p.charid), actor) end,
     set_code     = function(s, p, actor) return PStores.setCode(s.id, p.code, actor) end,
     set_price    = function(s, p, actor) return PStores.setPurchasePrice(s.id, tonumber(p.price), actor) end,
-    set_tax_rate = function(s, p, actor) return PStores.setTaxRate(s.id, tonumber(p.rate), actor) end,
+    set_tax_rate = function(s, p, actor)
+        local ok, err = PStores.setTaxRate(s.id, tonumber(p.rate), actor)
+        if ok then Taxes.startCycle(s.id) end     -- a rate that now matters starts a clock
+        return ok, err
+    end,
     repossess    = function(s, p, actor) return PStores.repossess(s.id, p.reason or 'admin repossession', actor) end,
     force_close  = function(s, _, actor) return PStores.setStatus(s.id, false, actor) end,
     exempt_inactivity = function(s, p, actor) return PStores.setInactivityExempt(s.id, p.untilDate, actor) end,
@@ -123,6 +132,71 @@ CreateThread(function()
     end
 
     guarded('sovereign_stores:admin:overview', function() return overview() end)
+
+    -- Tax administration (H4): every taxable store, its clock, the treasury.
+    guarded('sovereign_stores:admin:tax', function()
+        local rows, dueSoon, delinquent = {}, 0, 0
+        for id, s in pairs(PStores.all()) do
+            if s.owner_charid and s.status ~= 'repossessed' then
+                local q = Taxes.quote(s)
+                if q.amount > 0 then
+                    if q.state == 'delinquent' then delinquent = delinquent + 1 end
+                    local owner = charInfo(s.owner_charid)
+                    rows[#rows + 1] = {
+                        id = id, code = s.code, name = s.name,
+                        owner = owner and owner.name or nil,
+                        amount = q.amount, dueDate = q.dueDate, state = q.state,
+                        reserve = q.reserve, operating = Ledger.balance(id, 'operating'),
+                        since = q.since,
+                        covered = (q.reserve + Ledger.balance(id, 'operating')) >= q.amount,
+                    }
+                end
+            end
+        end
+        table.sort(rows, function(a, b)
+            if a.state ~= b.state then return a.state == 'delinquent' end
+            return tostring(a.dueDate or '') < tostring(b.dueDate or '')
+        end)
+        for _, r in ipairs(rows) do if not r.covered then dueSoon = dueSoon + 1 end end
+        return {
+            ok = true, rows = rows, delinquent = delinquent, atRisk = dueSoon,
+            fund = Fund.balance(), graceHours = (Config.Tax and Config.Tax.GraceHours) or 72,
+            history = Db.query(
+                [[SELECT l.store_id, s.name AS store_name, l.amount, l.created_at
+                  FROM sovereign_store_ledger l LEFT JOIN sovereign_stores s ON s.id = l.store_id
+                  WHERE l.type = 'tax_collected' ORDER BY l.id DESC LIMIT 25]], {}) or {},
+        }
+    end)
+
+    -- Inactivity monitor (H6)
+    guarded('sovereign_stores:admin:inactivity', function()
+        return {
+            ok = true, rows = Inactivity.report(),
+            warnDays = (Config.Inactivity and Config.Inactivity.WarnDays) or 30,
+            seizeDays = (Config.Inactivity and Config.Inactivity.RepossessDays) or 45,
+        }
+    end)
+
+    -- Force a scheduler pass now (testing + "collect early" authority).
+    guarded('sovereign_stores:admin:runCycle', function(_, which)
+        if which == 'inactivity' then
+            local r = Inactivity.runCycle()
+            return { ok = true, report = r }
+        end
+        local r = Taxes.runCycle()
+        return { ok = true, report = r }
+    end)
+
+    guarded('sovereign_stores:admin:letters', function()
+        return {
+            ok = true,
+            queued = Letters.queuedCount(),
+            postoffice = GetResourceState('sovereign_postoffice'),
+            rows = Db.query(
+                [[SELECT id, recipient_charid, subject, status, created_at, sent_at
+                  FROM sovereign_store_letters ORDER BY id DESC LIMIT 30]], {}) or {},
+        }
+    end)
     guarded('sovereign_stores:admin:store', function(_, id) return storeDetail(tonumber(id)) end)
 
     guarded('sovereign_stores:admin:create', function(source, data)
