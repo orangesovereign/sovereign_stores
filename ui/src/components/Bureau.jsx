@@ -12,6 +12,19 @@ import {
   IconStore, IconBank, IconAlert, IconClock, IconLedger, IconPulse, IconPlus, IconChevron, IconShield,
 } from './kit.jsx'
 
+/* Why a chartered store isn't being assessed — shown in place of a state
+   chip so the screen explains itself (ledger Phase 4 T1). */
+const EXCLUDE_LABEL = {
+  no_owner: 'NO OWNER',
+  no_levy: 'NO LEVY',
+  repossessed: 'REPOSSESSED',
+}
+const EXCLUDE_WHY = {
+  no_owner: 'Nobody holds this charter — assign an owner before the county can bill it.',
+  no_levy: 'Purchase price × tax rate comes to nothing. Set both on the store detail.',
+  repossessed: 'The county already holds this property.',
+}
+
 const SECTIONS = [
   { key: 'directory', label: 'Store Directory' },
   { key: 'detail', label: 'Store Detail' },
@@ -209,29 +222,47 @@ export default function Bureau({ initial }) {
                   <button className="ghost" onClick={() => runCycle('tax')}>Run collection now</button>
                 </div>
                 {tax.rows.length === 0 ? (
-                  <div className="empty">No store owes the county anything.</div>
+                  <div className="empty">The county has chartered no player stores yet.</div>
                 ) : (
                   <table className="dtable">
                     <thead><tr><th>Code</th><th>Store</th><th>Owner</th><th>Due</th><th>Amount</th><th>Reserve</th><th>State</th></tr></thead>
                     <tbody>
                       {tax.rows.map((r) => (
-                        <tr key={r.id} className="norow" onClick={() => openDetail(r.id)}>
+                        <tr key={r.id} className={'norow' + (r.exclude ? ' norow--muted' : '')}
+                          onClick={() => openDetail(r.id)}>
                           <td>{r.code ? <span className="codechip">{r.code}</span> : '—'}</td>
-                          <td><b>{r.name}</b></td>
+                          <td><b>{r.name}</b>
+                            {r.exclude === 'no_levy' && (
+                              <span className="subline">
+                                price {fmtMoney(r.purchasePrice)} · rate {Number(r.taxRate || 0)}%
+                              </span>
+                            )}
+                          </td>
                           <td className="dim">{r.owner || '—'}</td>
-                          <td className="dim">{r.dueDate || '—'}</td>
-                          <td className="num">{fmtMoney(r.amount)}</td>
-                          <td className={'num ' + (r.covered ? 'dim' : 'neg')}>{fmtMoney(r.reserve)}</td>
+                          <td className="dim">{r.exclude ? '—' : (r.dueDate || 'starting')}</td>
+                          <td className="num">{r.exclude ? '—' : fmtMoney(r.amount)}</td>
+                          <td className={'num ' + (r.exclude ? 'dim' : r.covered ? 'dim' : 'neg')}>
+                            {r.exclude ? '—' : fmtMoney(r.reserve)}</td>
                           <td>
-                            <span className={'chip chip--' + (r.state === 'delinquent' ? 'danger' : r.covered ? 'open' : 'warn')}>
-                              {r.state === 'delinquent' ? 'DELINQUENT' : r.covered ? 'COVERED' : 'SHORT'}
-                            </span>
+                            {r.exclude ? (
+                              <span className="chip chip--closed" title={EXCLUDE_WHY[r.exclude]}>
+                                {EXCLUDE_LABEL[r.exclude]}
+                              </span>
+                            ) : (
+                              <span className={'chip chip--' + (r.state === 'delinquent' ? 'danger' : r.covered ? 'open' : 'warn')}>
+                                {r.state === 'delinquent' ? 'DELINQUENT' : r.covered ? 'COVERED' : 'SHORT'}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
+                <p className="mgmt__hint">
+                  A store is only assessed once it has an owner AND a levy worth collecting
+                  (purchase price × tax rate). Anything greyed above says which of those is missing.
+                </p>
               </div>
               <div className="sheetcard">
                 <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Collected</span>

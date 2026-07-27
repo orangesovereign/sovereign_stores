@@ -115,7 +115,7 @@
   <header class="masthead">
     <div class="over">~ Sovereign County Mercantile Authority — Office of the County Clerk ~</div>
     <h1>PHASE 4 LEDGER</h1>
-    <div class="sub">The economy engine: taxes, repossession, absence, buy orders, letters — sovereign_stores v0.8.0</div>
+    <div class="sub">The economy engine: taxes, repossession, absence, buy orders, letters — sovereign_stores v0.8.1</div>
     <p class="note">One tester, and the county runs itself. Both schedulers are DB-dated, so an admin can force a pass instead of waiting a month — that IS the clerk's authority, not a debug hack. Two steps ask you to move a date in SQL and one asks you to shorten the county's mercy; put it back when you're done. Buy orders prove out solo because anyone may sell into one, including the owner. Every SQL line below addresses a store by its three-letter CODE — swap in yours, no ids to look up. To see the whole register at once: <code>SELECT id, code, name, owner_charid, tax_rate, purchase_price, tax_due_date, tax_state FROM sovereign_stores WHERE class = 'player';</code> One tester is enough — a step's chip says whether it happens <b>in game</b> or at the <b>server console</b>. Mark each line <em>Pass</em>, <em>Fail</em>, or <em>Skip</em> with notes; press <em>Build the Report</em> at the foot and paste it back. Marks persist between visits.</p>
     <div class="cast">
       <div class="who a"><b>OWNER</b> — the store's proprietor, at and around the store (tester A)</div>
@@ -156,13 +156,13 @@
   const LEDGER = [
     { art: 'I', title: 'Boot &amp; the New Machinery', tag: 'A2 · sentinels', who: 'b',
       why: "Six new server modules and no new tables. If any module failed to load, the banner must say so by name rather than letting a scheduler quietly never run.", items: [
-      { id: 'S1', who: 'b', gate: true, t: "Pull v0.8.0 and restart <code>sovereign_stores</code>. <b>No SQL to run this phase.</b> Read the console.", x: "<b>Expect:</b> green “booted clean (v0.8.0)”. NO “MODULE NEVER LOADED” lines — <code>letters</code>, <code>webhooks</code>, <code>taxes</code>, <code>inactivity</code>, <code>buyorders</code> and <code>integration</code> all count among the loaded." },
+      { id: 'S1', who: 'b', gate: true, t: "Pull v0.8.1 and restart <code>sovereign_stores</code>. <b>No SQL to run this phase.</b> Read the console.", x: "<b>Expect:</b> green “booted clean (v0.8.0)”. NO “MODULE NEVER LOADED” lines — <code>letters</code>, <code>webhooks</code>, <code>taxes</code>, <code>inactivity</code>, <code>buyorders</code> and <code>integration</code> all count among the loaded." },
       { id: 'S2', who: 'b', t: "Run <code>stores_diag</code>.", x: "<b>Expect:</b> all green, no missing tables or columns." },
     ]},
 
     { art: 'II', title: 'The Assessment', tag: 'F1 · E2 · H4', who: 'a',
       why: "The county's hand in the till. A store that CAN pay should never fall delinquent on bookkeeping alone — the reserve is tried first, the operating ledger covers the rest.", items: [
-      { id: 'T1', who: 'a', gate: true, t: "Bureau (<code>/storeadmin</code>) → your store → set <b>purchase price 500</b> and <b>tax rate 5</b>. Then open <b>Tax Administration</b>.", x: "<b>Expect:</b> the store appears in Assessments — $25.00 assessed, a due date ~30 days out, state COVERED or SHORT depending on its ledgers." },
+      { id: 'T1', who: 'a', gate: true, t: "Bureau (<code>/storeadmin</code>) → your store → set <b>purchase price 500</b> and <b>tax rate 5</b>. Then open <b>Tax Administration</b>.", x: "<b>Expect:</b> the store appears in Assessments — $25.00 assessed, a due date ~30 days out, state COVERED or SHORT depending on its ledgers. EVERY chartered store is listed here: any that is NOT being assessed is greyed with the reason why (<code>NO OWNER</code> / <code>NO LEVY</code> / <code>REPOSSESSED</code>). If yours reads NO OWNER, assign one on the store detail; NO LEVY means the price or the rate is still zero." },
       { id: 'T2', who: 'a', gate: true, t: "Put $30 in the store's <b>Tax Reserve</b> (Management → Ledgers → Tax Reserve deposit). Back in Tax Administration press <b>Run collection now</b>.", x: "<b>Expect:</b> the toast reads “1 paid”. Reserve drops by $25, the Government Fund tile rises by $25, Collection History gains the row, and the due date jumps forward another period. A <b>Receipt of Property Tax</b> lands in County Letters." },
       { id: 'T3', who: 'a', t: "Now empty BOTH purses (withdraw the operating ledger, spend the reserve down). Set the due date back: <code>UPDATE sovereign_stores SET tax_due_date = CURDATE() WHERE code = 'BWM';</code> then <b>Run collection now</b>.", x: "<b>Expect:</b> toast reads “1 delinquent”. The store's chip turns <code>DELINQUENT</code> in the directory AND the assessments table; a <b>NOTICE OF DELINQUENT TAX</b> appears in County Letters; the owner gets a red card in game." },
     ]},
@@ -289,7 +289,7 @@
     const lines = [];
     lines.push('SOVEREIGN STORES — Phase 4 Ledger (SOLO) — Results');
     lines.push('Date: ' + new Date().toISOString().slice(0, 10));
-    lines.push('Resource version: 0.8.0    Server build: ______');
+    lines.push('Resource version: 0.8.1    Server build: ______');
     LEDGER.forEach(a => {
       lines.push('');
       lines.push('ART. ' + a.art + ' — ' + stripHTML(a.title));

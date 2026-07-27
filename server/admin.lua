@@ -101,7 +101,13 @@ local ACTIONS = {
     end,
     transfer     = function(s, p, actor) return PStores.transferOwner(s.id, tonumber(p.charid), actor) end,
     set_code     = function(s, p, actor) return PStores.setCode(s.id, p.code, actor) end,
-    set_price    = function(s, p, actor) return PStores.setPurchasePrice(s.id, tonumber(p.price), actor) end,
+    set_price    = function(s, p, actor)
+        local ok, err = PStores.setPurchasePrice(s.id, tonumber(p.price), actor)
+        -- a price that now makes the levy real starts the clock, exactly as
+        -- setting the rate does — whichever the admin fills in last
+        if ok then Taxes.startCycle(s.id) end
+        return ok, err
+    end,
     set_tax_rate = function(s, p, actor)
         local ok, err = PStores.setTaxRate(s.id, tonumber(p.rate), actor)
         if ok then Taxes.startCycle(s.id) end     -- a rate that now matters starts a clock
@@ -136,28 +142,38 @@ CreateThread(function()
     -- Tax administration (H4): every taxable store, its clock, the treasury.
     guarded('sovereign_stores:admin:tax', function()
         local rows, dueSoon, delinquent = {}, 0, 0
+        -- EVERY player store is listed. One that owes nothing says so and
+        -- why — a store vanishing from this screen taught us nothing
+        -- (ledger Phase 4 T1).
         for id, s in pairs(PStores.all()) do
-            if s.owner_charid and s.status ~= 'repossessed' then
-                local q = Taxes.quote(s)
-                if q.amount > 0 then
-                    if q.state == 'delinquent' then delinquent = delinquent + 1 end
-                    local owner = charInfo(s.owner_charid)
-                    rows[#rows + 1] = {
-                        id = id, code = s.code, name = s.name,
-                        owner = owner and owner.name or nil,
-                        amount = q.amount, dueDate = q.dueDate, state = q.state,
-                        reserve = q.reserve, operating = Ledger.balance(id, 'operating'),
-                        since = q.since,
-                        covered = (q.reserve + Ledger.balance(id, 'operating')) >= q.amount,
-                    }
-                end
-            end
+            local q = Taxes.quote(s)
+            local owner = s.owner_charid and charInfo(s.owner_charid) or nil
+            local exclude = nil
+            if s.status == 'repossessed' then exclude = 'repossessed'
+            elseif not s.owner_charid then exclude = 'no_owner'
+            elseif q.amount <= 0 then exclude = 'no_levy' end
+
+            if not exclude and q.state == 'delinquent' then delinquent = delinquent + 1 end
+            rows[#rows + 1] = {
+                id = id, code = s.code, name = s.name,
+                owner = owner and owner.name or nil,
+                amount = q.amount, dueDate = q.dueDate, state = q.state,
+                reserve = q.reserve, operating = Ledger.balance(id, 'operating'),
+                since = q.since,
+                purchasePrice = s.purchase_price, taxRate = s.tax_rate,
+                exclude = exclude,
+                covered = (q.reserve + Ledger.balance(id, 'operating')) >= q.amount,
+            }
         end
         table.sort(rows, function(a, b)
+            -- assessed stores first, delinquent at the very top
+            if (a.exclude ~= nil) ~= (b.exclude ~= nil) then return a.exclude == nil end
             if a.state ~= b.state then return a.state == 'delinquent' end
             return tostring(a.dueDate or '') < tostring(b.dueDate or '')
         end)
-        for _, r in ipairs(rows) do if not r.covered then dueSoon = dueSoon + 1 end end
+        for _, r in ipairs(rows) do
+            if not r.exclude and not r.covered then dueSoon = dueSoon + 1 end
+        end
         return {
             ok = true, rows = rows, delinquent = delinquent, atRisk = dueSoon,
             fund = Fund.balance(), graceHours = (Config.Tax and Config.Tax.GraceHours) or 72,
