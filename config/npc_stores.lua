@@ -1,124 +1,64 @@
 --[[=====================================================================
-  SOVEREIGN STORES · NPC STORE DEFINITIONS
+  SOVEREIGN STORES · NPC STORES — SHARED SETTINGS & FIELD REFERENCE
   ---------------------------------------------------------------------
-  Government-run stores. Defined entirely here — never ownable, no DB
-  rows. One definition can be stamped onto many map locations.
+  Government-run stores. Never ownable, no DB rows, infinite stock, 24/7,
+  cash only.
 
-  Every item must exist in the `items` DB table; boot validates each
-  catalog entry with a loud console warning for typos (invalid entries
-  are dropped, the store still runs).
+  EACH STORE TYPE IS ITS OWN FILE in config/stores/ :
 
-  Prices are dollars (cash only — owner decision 2026-07-23). Stores are
-  24/7 (no hours system). NPC stock is infinite.
+      config/stores/general.lua       ← one catalog, four counters
+      config/stores/fishing.lua
+      config/stores/pelts.lua
+      config/stores/butcher.lua
+      config/stores/blackmarket.lua   ← roaming, no blip
 
-  Catalog entry fields:
+  That is the whole model: ONE definition per type, MANY locations. Every
+  general store in the county sells the same goods at the same prices
+  because they share one catalog; add a counter by adding a line to that
+  file's `locations`. To add a new type, drop in a new file — the
+  manifest loads config/stores/*.lua and each file appends itself to the
+  NPCStores table, so load order never matters.
+
+  Changes here need a resource restart: the config is read once at boot.
+  Every item name is validated against the `items` DB table at boot —
+  a typo gets a loud console warning and that one entry is dropped
+  (the store still opens).
+
+  ─── FIELD REFERENCE ─────────────────────────────────────────────────
+  Store fields:
+    enabled     false hides the store entirely (placements, blips, peds)
+    label       name across the storefront masthead and blips
+    category    drives the storefront's department icon
+    est         masthead eyebrow line (nil = "~ SOVEREIGN COUNTY ~")
+    tagline     italic line under the store name
+    notice      optional "Today's notice" card in the department rail
+    npcModel    cashier ped for every counter (a location may override)
+    blip        { sprite = <hash|name>, label = <text> }; nil = no blip
+    roaming     true = one pool spot picked per restart, never a blip
+    locations   array of counters: { coords, heading, npcModel?, blip? }
+    locationPool  roaming stores only — candidate spots
+    categories  storefront departments: { { key, label }, ... }
+    buy         what the store SELLS to players
+    sell        what the store BUYS from players
+    allowedJobs nil/empty = everyone; e.g. { 'doctor' }
+    jobGrade    minimum job grade when allowedJobs is set
+    priceDrift  optional { min = -10, max = 10 } percent, re-rolled each restart
+
+  Catalog entry (buy):
     item      (required) DB item name
     price     (required) unit price in dollars
-    category  (optional) storefront tab, defaults 'general'
+    category  (optional) which department tab, defaults 'general'
     label     (optional) override the DB label
-  Sell entry extras:
-    minCondition      (optional) 0-100; degradable items below this are refused
-    scaleByCondition  (optional) true = payout × condition% (design B8)
-  Weapon entries (buy only, Phase 2 for player stores; allowed here too):
-    weapon = true — item is a WEAPON_ hash; delivered via createWeapon
+    weapon    (optional) true = a WEAPON_ name, delivered via createWeapon
+
+  Catalog entry (sell) — the above, plus:
+    minCondition      0-100; degradable stacks below this are refused
+    scaleByCondition  true = payout × the stack's condition %
 =====================================================================]]--
 
-NPCStores = {
-
-    general = {
-        enabled  = true,
-        label    = 'General Store',
-        category = 'general',
-        est      = 'EST. 1899 · SOVEREIGN COUNTY',   -- masthead eyebrow line
-        tagline  = 'Provisions, supplies & honest trade',
-        notice   = nil,   -- optional "Today's notice" card text in the storefront
-        npcModel = 'U_M_M_NbxGeneralStoreOwner_01',
-        blip     = { sprite = 1475879922, label = 'General Store' },
-        roaming  = false,
-        locations = {
-            -- proven placements carried over from vorp_stores
-            { coords = vector3(-324.628, 803.9818, 116.88), heading = -81.17, npcModel = 'U_M_M_NbxGeneralStoreOwner_01' }, -- Valentine
-            { coords = vector3(1330.227, -1293.41, 76.021), heading = 68.88,  npcModel = 'S_M_M_UNIBUTCHERS_01' },          -- Rhodes
-            { coords = vector3(-1789.66, -387.918, 159.32), heading = 56.96,  npcModel = 'S_M_M_UNIBUTCHERS_01' },          -- Strawberry
-            { coords = vector3(-784.738, -1321.73, 42.884), heading = 179.63, npcModel = 'S_M_M_UNIBUTCHERS_01' },          -- Blackwater
-        },
-        categories = {
-            { key = 'drinks',  label = 'Drinks' },
-            { key = 'food',    label = 'Provisions' },
-            { key = 'general', label = 'Sundries' },
-        },
-        -- EXAMPLE CATALOG — items verified to exist on the dev DB.
-        -- Operators: expand freely; boot will call out any bad names.
-        buy = {
-            { item = 'alcohol',                  price = 2.50, category = 'drinks' },
-            { item = 'consumable_raspberrywater', price = 0.75, category = 'drinks' },
-            { item = 'ammorevolvernormal',       price = 0.15, category = 'general' },
-        },
-        sell = {
-            { item = 'aligatormeat', price = 0.90, category = 'food', minCondition = 25, scaleByCondition = true },
-        },
-        allowedJobs = nil,   -- nil/empty = everyone; e.g. { 'doctor' }
-        jobGrade    = 0,
-        priceDrift  = nil,   -- optional { min = -10, max = 10 } percent, re-rolled each restart
-    },
-
-    fishing = {
-        enabled  = false,    -- TODO(operator): placements + catalog, then enable
-        label    = 'Fishing Supply',
-        category = 'fishing',
-        npcModel = 'U_M_M_NbxGeneralStoreOwner_01',
-        blip     = { sprite = 1475879922, label = 'Fishing Supply' },
-        roaming  = false,
-        locations = {},
-        categories = { { key = 'general', label = 'Tackle' } },
-        buy = {}, sell = {},
-    },
-
-    pelts = {
-        enabled  = false,    -- TODO(operator): placements + catalog, then enable
-        label    = 'Pelt Trader',
-        category = 'pelts',
-        npcModel = 'S_M_M_UNIBUTCHERS_01',
-        blip     = { sprite = 1475879922, label = 'Pelt Trader' },
-        roaming  = false,
-        locations = {},
-        categories = { { key = 'general', label = 'Hides & Pelts' } },
-        buy = {}, sell = {},
-    },
-
-    butcher = {
-        enabled  = false,    -- TODO(operator): placements + catalog, then enable
-        label    = 'Butcher',
-        category = 'butcher',
-        npcModel = 'S_M_M_UNIBUTCHERS_01',
-        blip     = { sprite = 1475879922, label = 'Butcher' },
-        roaming  = false,
-        locations = {},
-        categories = { { key = 'general', label = 'Meats' } },
-        buy = {}, sell = {},
-    },
-
-    blackmarket = {
-        enabled  = false,    -- TODO(operator): real wilderness spots in the pool, then enable
-        label    = 'A Quiet Dealer',
-        category = 'blackmarket',
-        npcModel = 'U_M_M_ODDFELLOWSPARTICIPANT_01',
-        blip     = nil,      -- roaming stores NEVER get a blip (design §2.1)
-        roaming  = true,
-        -- The server picks ONE pool spot at each restart (same for everyone),
-        -- skipping any that fall inside Config.ExclusionZones below.
-        locationPool = {
-            -- { coords = vector3(0.0, 0.0, 0.0), heading = 0.0 },  -- TODO(operator)
-        },
-        locations  = {},     -- unused for roaming stores
-        categories = { { key = 'general', label = 'No Questions' } },
-        buy = {}, sell = {},
-    },
-}
-
 -- Town exclusion zones: a roaming store will never set up inside these.
--- Shared by every future roaming store. Radii are deliberately generous;
--- tune freely — a console warning flags any pool spot that lands inside.
+-- Shared by every roaming store. Radii are deliberately generous; tune
+-- freely — a console warning flags any pool spot that lands inside one.
 Config.ExclusionZones = {
     { name = 'Valentine',   center = vector3(-290.0, 790.0, 118.0),   radius = 220.0 },
     { name = 'Rhodes',      center = vector3(1290.0, -1300.0, 77.0),  radius = 220.0 },
