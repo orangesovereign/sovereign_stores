@@ -6,7 +6,7 @@ lua54 'yes'
 author 'Sovereign County RP'
 description 'Unified commerce for Sovereign County: NPC stores + player-owned storefronts. Replaces vorp_stores.'
 repository 'https://github.com/orangesovereign/sovereign_stores'
-version '0.8.2'
+version '0.9.0'
 
 -- Load order is deliberate: config → locale → util → events → validate → bridge,
 -- then db.lua before anything that touches MySQL, core.lua last on each side.
@@ -34,6 +34,7 @@ server_scripts {
     'server/admin.lua',
     'server/stock.lua',
     'server/shifts.lua',
+    'server/analytics.lua',   -- item-level sales record (H5/H7)
     -- Phase 4 economy: letters + webhooks first (the schedulers speak
     -- through them), then the schedulers, then buy orders.
     'server/letters.lua',

@@ -195,3 +195,24 @@ CREATE TABLE IF NOT EXISTS `sovereign_store_events` (
     KEY `idx_store_time` (`store_id`, `created_at`),
     KEY `idx_kind` (`kind`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Item-level sales record (features H5/H7). The ledger holds the MONEY as
+-- one row per transaction; this holds the GOODS, one row per line, so
+-- "top items" and volume-over-time have a real source. NPC stores have no
+-- numeric id, so they record their config key instead.
+CREATE TABLE IF NOT EXISTS `sovereign_store_sale_items` (
+    `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `store_id`   INT UNSIGNED  NULL DEFAULT NULL,            -- player stores
+    `store_key`  VARCHAR(32)   NULL DEFAULT NULL,            -- NPC stores
+    `kind`       ENUM('sale','purchase') NOT NULL DEFAULT 'sale',
+    `item`       VARCHAR(64)   NOT NULL,
+    `qty`        INT           NOT NULL DEFAULT 0,
+    `unit_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    `gross`      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `charid`     INT           NULL DEFAULT NULL,            -- the other party
+    `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_store_time` (`store_id`, `created_at`),
+    KEY `idx_item_time` (`item`, `created_at`),
+    KEY `idx_kind_time` (`kind`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -33,7 +33,7 @@ const SECTIONS = [
   { key: 'tax', label: 'Tax Administration' },
   { key: 'inactivity', label: 'Inactivity Monitor' },
   { key: 'letters', label: 'County Letters' },
-  { key: 'analytics', label: 'Commerce Analytics', soon: true },
+  { key: 'analytics', label: 'Commerce Analytics' },
 ]
 
 export default function Bureau({ initial }) {
@@ -45,6 +45,7 @@ export default function Bureau({ initial }) {
   const [tax, setTax] = useState(null)
   const [inactivity, setInactivity] = useState(null)
   const [letters, setLetters] = useState(null)
+  const [analytics, setAnalytics] = useState(null)
   const [assigning, setAssigning] = useState(false)
   const [q, setQ] = useState('')
   const [toast, setToast] = useState(null)
@@ -74,6 +75,7 @@ export default function Bureau({ initial }) {
     if (key === 'tax') { const r = await post('adminTax'); if (r?.ok) setTax(r) }
     if (key === 'inactivity') { const r = await post('adminInactivity'); if (r?.ok) setInactivity(r) }
     if (key === 'letters') { const r = await post('adminLetters'); if (r?.ok) setLetters(r) }
+    if (key === 'analytics') { const r = await post('adminAnalytics', { days: 30 }); if (r?.ok) setAnalytics(r) }
     if (key === 'directory') refreshOverview()
     setSection(key)
   }
@@ -345,6 +347,81 @@ export default function Bureau({ initial }) {
               )}
             </div>
           )}
+
+          {section === 'analytics' && analytics?.ok && (() => {
+            const max = Math.max(...analytics.series.map((d) => Math.max(d.sales, d.purchases)), 1)
+            const t = analytics.totals
+            return (
+              <>
+                <div className="tiles">
+                  <StatTile icon={<IconPulse />} label="Sales" value={fmtMoney(t.sales)}
+                    sub={`${t.units} goods · ${analytics.days} days`} />
+                  <StatTile icon={<IconBank />} label="Tax Collected" value={fmtMoney(t.taxCollected)}
+                    sub={`${analytics.days} days`} />
+                  <StatTile icon={<IconLedger />} label="Wages Paid" value={fmtMoney(t.wages)}
+                    sub="across all stores" />
+                  <StatTile icon={<IconStore />} label="Buy-Order Spend" value={fmtMoney(t.buyOrderSpend)}
+                    sub={`${t.buyOrderUnits} goods in`} />
+                </div>
+
+                <div className="sheetcard">
+                  <div className="sheetcard__bar"><div>
+                    <span className="sheetcard__eyebrow">Last {analytics.series.length} days · gross</span>
+                    <h2 className="sheetcard__title">Commerce Over Time</h2></div></div>
+                  <div className="bars bars--wide">
+                    {analytics.series.map((d, i) => (
+                      <div className="bars__col" key={i}>
+                        <div className="bars__stack">
+                          <div className="bars__bar" style={{ height: Math.max(2, (d.sales / max) * 100) + '%' }}
+                            title={`sales ${fmtMoney(d.sales)}`} />
+                          <div className="bars__bar bars__bar--buy" style={{ height: Math.max(0, (d.purchases / max) * 100) + '%' }}
+                            title={`bought ${fmtMoney(d.purchases)}`} />
+                        </div>
+                        <span className="bars__day">{d.day}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bars__foot">
+                    <div><span className="subline">Sales (gold)</span><b className="pos">{fmtMoney(t.sales)}</b></div>
+                    <div><span className="subline">Bought in (oxblood)</span><b className="neg">{fmtMoney(t.purchases)}</b></div>
+                  </div>
+                </div>
+
+                <div className="cols2">
+                  <div className="sheetcard">
+                    <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">By gross</span>
+                      <h2 className="sheetcard__title">Top Goods</h2></div></div>
+                    {analytics.topItems.length === 0 ? <div className="empty">Nothing sold yet.</div> : (
+                      <table className="dtable"><tbody>
+                        {analytics.topItems.map((it, i) => (
+                          <tr key={it.item} className="norow">
+                            <td className="rank">{i + 1}</td>
+                            <td><b>{it.item}</b><span className="subline">{it.units} sold</span></td>
+                            <td className="num pos">{fmtMoney(it.gross)}</td>
+                          </tr>
+                        ))}
+                      </tbody></table>
+                    )}
+                  </div>
+                  <div className="sheetcard">
+                    <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">By gross</span>
+                      <h2 className="sheetcard__title">Busiest Stores</h2></div></div>
+                    {analytics.topStores.length === 0 ? <div className="empty">No player-store sales yet.</div> : (
+                      <table className="dtable"><tbody>
+                        {analytics.topStores.map((st, i) => (
+                          <tr key={st.store_id} className="norow" onClick={() => openDetail(st.store_id)}>
+                            <td>{st.code ? <span className="codechip">{st.code}</span> : '—'}</td>
+                            <td><b>{st.store_name || ('#' + st.store_id)}</b><span className="subline">{st.units} sold</span></td>
+                            <td className="num pos">{fmtMoney(st.gross)}</td>
+                          </tr>
+                        ))}
+                      </tbody></table>
+                    )}
+                  </div>
+                </div>
+              </>
+            )
+          })()}
 
           {section === 'fund' && fund?.ok && (
             <div className="sheetcard">

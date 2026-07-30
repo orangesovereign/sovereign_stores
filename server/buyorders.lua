@@ -138,6 +138,10 @@ function BuyOrders.fill(src, storeId, orderId, qty)
     end
 
     local s = PStores.get(storeId)
+    Analytics.record({
+        storeId = storeId, kind = 'purchase', item = o.item, qty = qty,
+        unitPrice = unit, gross = total, charid = charid,
+    })
     EventLog.write(storeId, 'buy_order_filled', charid, nil, { item = o.item, qty = qty, total = total })
     Webhooks.fire(storeId, 'purchase', {
         title = _U('wh_buy_order_filled'), color = 0x8A5C2E,

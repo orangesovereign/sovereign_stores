@@ -105,6 +105,7 @@ local function mgmtPayload(src, storeId)
         notes = Notes.list(s.id),
         lowStock = Shifts.lowStock(s.id),
         buyOrders = BuyOrders.list(s.id),
+        analytics = Analytics.forStore(s.id),
         tax = Taxes.quote(s),
         webhook = { url = s.webhook_url, events = s.webhook_events or {}, types = Webhooks.eventTypes() },
         staff = staff,

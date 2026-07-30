@@ -272,6 +272,14 @@ local function checkout(src, storeKey, cart)
         end
         if okLine then
             delivered = Util.round2(delivered + line.cost)
+            -- record the GOODS for analytics (H5/H7); never fails the sale
+            Analytics.record({
+                storeId = pstore and pstore.id or nil,
+                storeKey = pstore and nil or store.key,
+                kind = 'sale', item = line.entry.item, qty = line.qty,
+                unitPrice = unitPrice(line.entry), gross = line.cost,
+                charid = Bridge.getCharId(src),
+            })
         else
             Bridge.money.add(src, line.cost)
             Util.err(('checkout: delivery failed for %s x%d (player %s) — refunded %.2f'):format(
@@ -383,10 +391,17 @@ local function sellToStore(src, storeKey, entries)
 
     local total, sold = 0, 0
     for _, req in ipairs(entries) do
-        local amount, sellErr = sellStack(src, store, req)
+        local amount, sellErr, soldQty = sellStack(src, store, req)
         if amount then
             total = Util.round2(total + amount)
             sold = sold + 1
+            -- the county BUYING from a player is a 'purchase' line (H5)
+            Analytics.record({
+                storeKey = store.key, kind = 'purchase',
+                item = tostring(req.item), qty = soldQty or 0,
+                unitPrice = (soldQty and soldQty > 0) and Util.round2(amount / soldQty) or amount,
+                gross = amount, charid = Bridge.getCharId(src),
+            })
         else
             Util.debug(('sell refused (%s): %s'):format(tostring(req.item), tostring(sellErr)))
         end

@@ -225,6 +225,24 @@
 .bars__foot { display: flex; justify-content: space-between; gap: 12px; padding: 14px 6px 2px; }
 .bars__foot b { display: block; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--sv-ivory); }
 
+/* wide series (Bureau analytics): more days, sales+buy per day ─────── */
+.bars--wide { gap: 6px; height: 170px; }
+.bars--wide .bars__day { font-size: 10px; }
+.bars__stack { display: flex; align-items: flex-end; gap: 2px; width: 100%; height: 100%; justify-content: center; }
+.bars__bar--buy {
+  background: linear-gradient(180deg, var(--sv-red), var(--sv-red-dark));
+  border-top: 1px solid var(--sv-red);
+}
+
+/* owner at-a-glance pulse ──────────────────────────────────────────── */
+.glance { display: flex; gap: 10px; padding: 6px 2px; }
+.glance__cell { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px;
+  background: var(--sv-raised); border: var(--sv-hairline-soft); }
+.glance__num { font-family: var(--sv-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.glance__lbl { font-family: var(--sv-label); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sv-faint); }
+.glance__sub { font-size: 12.5px; color: var(--sv-muted); }
+.rank { font-family: var(--sv-display); font-size: 16px; color: var(--sv-brass-light); width: 28px; text-align: center; }
+
 .actions--tight { gap: 5px; }
 .actions--tight > button, .actions--tight .finder > button { padding: 5px 9px; font-size: 12.5px; }
 

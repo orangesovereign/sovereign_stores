@@ -41,6 +41,12 @@ local FORWARD = {
     adminLetters    = { 'sovereign_stores:admin:letters' },
 }
 
+RegisterNUICallback('adminAnalytics', function(data, cb)
+    CreateThread(function()
+        cb(await('sovereign_stores:admin:analytics', data and data.days or 30) or { ok = false, error = 'no_response' })
+    end)
+end)
+
 for nuiName, def in pairs(FORWARD) do
     RegisterNUICallback(nuiName, function(_, cb)
         CreateThread(function()

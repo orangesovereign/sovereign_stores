@@ -253,6 +253,50 @@ function Overview({ data }) {
           )}
         </div>
       </div>
+
+      {data.analytics && (
+        <div className="cols2">
+          <div className="sheetcard">
+            <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">The pulse</span>
+              <h2 className="sheetcard__title">At a Glance</h2></div></div>
+            <div className="glance">
+              <div className="glance__cell">
+                <span className="glance__num pos">{fmtMoney(data.analytics.sales7.gross)}</span>
+                <span className="glance__lbl">sales · 7 days</span>
+                <span className="glance__sub">{data.analytics.sales7.units} goods</span>
+              </div>
+              <div className="glance__cell">
+                <span className="glance__num pos">{fmtMoney(data.analytics.sales30.gross)}</span>
+                <span className="glance__lbl">sales · 30 days</span>
+                <span className="glance__sub">{data.analytics.sales30.units} goods</span>
+              </div>
+              <div className="glance__cell">
+                <span className="glance__num neg">{fmtMoney(data.analytics.buys30.gross)}</span>
+                <span className="glance__lbl">bought in · 30 days</span>
+                <span className="glance__sub">{data.analytics.buys30.units} goods</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="sheetcard">
+            <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Last 30 days</span>
+              <h2 className="sheetcard__title">Top Sellers</h2></div></div>
+            {(!data.analytics.topItems || data.analytics.topItems.length === 0) ? (
+              <div className="empty">Nothing sold yet.</div>
+            ) : (
+              <table className="dtable"><tbody>
+                {data.analytics.topItems.map((it, i) => (
+                  <tr key={it.item} className="norow">
+                    <td className="rank">{i + 1}</td>
+                    <td><b>{it.item}</b><span className="subline">{it.units} sold</span></td>
+                    <td className="num pos">{fmtMoney(it.gross)}</td>
+                  </tr>
+                ))}
+              </tbody></table>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }

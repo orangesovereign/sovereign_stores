@@ -184,6 +184,11 @@ CreateThread(function()
         }
     end)
 
+    -- Commerce analytics (H5) — county-wide, window in days
+    guarded('sovereign_stores:admin:analytics', function(_, days)
+        return Analytics.county(tonumber(days) or 30)
+    end)
+
     -- Inactivity monitor (H6)
     guarded('sovereign_stores:admin:inactivity', function()
         return {

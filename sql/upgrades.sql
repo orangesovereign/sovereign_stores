@@ -42,3 +42,24 @@ SET @ddl := IF(@col_exists = 0,
 PREPARE upgrade_20260724b FROM @ddl;
 EXECUTE upgrade_20260724b;
 DEALLOCATE PREPARE upgrade_20260724b;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2026-07-30 · Phase 5 (analytics)
+-- Item-level sales record. Idempotent — CREATE TABLE IF NOT EXISTS.
+-- ─────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `sovereign_store_sale_items` (
+    `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `store_id`   INT UNSIGNED  NULL DEFAULT NULL,
+    `store_key`  VARCHAR(32)   NULL DEFAULT NULL,
+    `kind`       ENUM('sale','purchase') NOT NULL DEFAULT 'sale',
+    `item`       VARCHAR(64)   NOT NULL,
+    `qty`        INT           NOT NULL DEFAULT 0,
+    `unit_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    `gross`      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `charid`     INT           NULL DEFAULT NULL,
+    `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_store_time` (`store_id`, `created_at`),
+    KEY `idx_item_time` (`item`, `created_at`),
+    KEY `idx_kind_time` (`kind`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -21,6 +21,7 @@ local REQUIRED_TABLES <const> = {
     'sovereign_store_events',
     'sovereign_weapon_serials',
     'sovereign_government_fund',
+    'sovereign_store_sale_items',
 }
 
 function Db.available()
