@@ -11,6 +11,7 @@
     IsStoreStaff(charid, storeId)     -> role string | nil
     GetStoresForCharacter(charid)     -> array of { id, role }
     AssignOwner(storeId, charid)      -> ok, err     (realty script hook)
+    CreateStore(data)                 -> storeId, err (county-script charter hook)
     LookupWeaponSerial(serial)        -> registry row (server/serials.lua)
     GetGovernmentFund()               -> number      (server/fund.lua)
     SpendGovernmentFund(amount, note) -> ok          (server/fund.lua)
@@ -82,6 +83,49 @@ exports('AssignOwner', function(storeId, charid)
     local ok, err = PStores.assignOwner(tonumber(storeId), tonumber(charid), nil)
     if ok then Taxes.startCycle(tonumber(storeId)) end
     return ok, err
+end)
+
+---For county scripts (e.g. sovereign_stables) that charter a storefront at their
+---OWN location — a stable's store counter. Creates a player store, optionally
+---assigns an owner and opens it. IDEMPOTENT when `code` is supplied: if a store
+---with that 3-letter code already exists, its id is returned rather than a
+---duplicate, so the caller can invoke this on every boot safely.
+---  data = {
+---    name,                 -- required; the shop name
+---    coords = {x,y,z,h},   -- required; where the register + ped + prompts appear
+---    category = 'general', -- optional
+---    npcModel,             -- optional store-clerk model (its OWN ped)
+---    code,                 -- optional 3 uppercase letters; enables idempotency + lookup
+---    owner,                -- optional charid to assign (starts the tax clock)
+---    open,                 -- optional bool; open the store immediately
+---  }
+--- returns storeId, err
+exports('CreateStore', function(data)
+    if type(data) ~= 'table' or not data.name or not data.coords then return nil, 'bad_data' end
+
+    local code = data.code and tostring(data.code):upper() or nil
+    if code and not code:match('^%u%u%u$') then return nil, 'bad_code' end
+
+    -- Idempotency: reuse an existing store carrying the same code.
+    if code then
+        for _, s in pairs(PStores.all()) do
+            if s.code and s.code:upper() == code then return s.id end
+        end
+    end
+
+    local id, err = PStores.create({
+        name = data.name, category = data.category or 'general',
+        coords = data.coords, npcModel = data.npcModel,
+    }, nil)
+    if not id then return nil, err or 'db' end
+
+    if code then PStores.setCode(id, code, nil) end
+    if data.owner then
+        local ok = PStores.assignOwner(id, tonumber(data.owner), nil)
+        if ok then Taxes.startCycle(id) end
+    end
+    if data.open then PStores.setStatus(id, true, nil) end
+    return id
 end)
 
 Boot.integration = true
