@@ -49,6 +49,9 @@ export const IconPick = () => (
 export const IconLeaf = () => (
   <svg {...base}><path d="M3 13C3 6.5 8 3 13.5 3 13.5 9.5 8.5 13 3 13z" /><path d="M3 13c2.5-3.5 5-6 8-8" /></svg>
 )
+export const IconCross = () => (
+  <svg {...base}><rect x="3" y="3" width="10" height="10" rx="1.5" /><path d="M8 5.5v5M5.5 8h5" /></svg>
+)
 
 const MAP = {
   all: IconBox, general: IconBox, goods: IconBox, other: IconBox,
@@ -63,6 +66,7 @@ const MAP = {
   bakery: IconLoaf,
   mining: IconPick,
   produce: IconLeaf,
+  medical: IconCross, meds: IconCross, tonics: IconBottle,
   sale: IconTag,
 }
 
