@@ -23,7 +23,9 @@ NPCStores.medical = {
     -- ── Counters ────────────────────────────────────────────────────
     locations = {
         -- Tumbleweed Medical Supply Store
-        { coords = vector3(-5501.75, -2962.59, -0.76), heading = 275.0 },
+        { coords = vector3(-5501.75, -2962.59, -0.76),  heading = 275.0 },
+        -- Armadillo Medical Supply Store
+        { coords = vector3(-3661.32, -2595.52, -13.36), heading = 185.67 },
     },
 
     -- ── Storefront departments (the left rail) ───────────────────────

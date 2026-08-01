@@ -31,6 +31,7 @@ NPCStores.general = {
         { coords = vector3(-1789.66, -387.918, 159.32), heading = 56.96,  npcModel = 'S_M_M_UNIBUTCHERS_01' },          -- Strawberry
         { coords = vector3(-784.738, -1321.73, 42.884), heading = 179.63, npcModel = 'S_M_M_UNIBUTCHERS_01' },          -- Blackwater
         { coords = vector3(-5491.22, -2938.06, -0.45),  heading = 271.22 },                                             -- Tumbleweed
+        { coords = vector3(-3681.19, -2626.9,  -13.48), heading = 24.89 },                                              -- Armadillo
     },
 
     -- ── Storefront departments (the left rail) ───────────────────────
