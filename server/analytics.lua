@@ -20,6 +20,7 @@ Analytics = {}
 ---@param opts table { storeId?, storeKey?, kind, item, qty, unitPrice, gross, charid? }
 function Analytics.record(opts)
     if type(opts) ~= 'table' then return end
+    if not Db.hasTable('sovereign_store_sale_items') then return end   -- feature not migrated yet
     local ok = pcall(function()
         Db.insert(
             [[INSERT INTO sovereign_store_sale_items
@@ -40,6 +41,7 @@ end
 ---Compact per-store pulse: sales/purchase totals over 7 and 30 days,
 ---plus the store's own top sellers.
 function Analytics.forStore(storeId)
+    if not Db.hasTable('sovereign_store_sale_items') then return nil end
     storeId = tonumber(storeId)
     local function window(days, kind)
         local r = Db.query(
@@ -95,6 +97,9 @@ local function dailySeries(days)
 end
 
 function Analytics.county(days)
+    if not Db.hasTable('sovereign_store_sale_items') then
+        return { ok = false, error = 'analytics_not_migrated' }
+    end
     days = tonumber(days) or 30
     local totals = Db.query(
         [[SELECT

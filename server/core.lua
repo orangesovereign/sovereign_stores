@@ -31,6 +31,7 @@ local function buildReport()
         oxmysql   = Db.available(),
         dbMissing = Db.available() and Db.verifySchema() or Db.requiredTables(),
         dbColumns = Db.available() and Db.verifyColumns() or {},
+        dbOptional = Db.available() and Db.verifyOptional() or {},
         modules   = missingModules(),
         counts    = {},
     }
@@ -86,6 +87,11 @@ local function printReport(report)
     for _, col in ipairs(report.dbColumns or {}) do
         Util.err(('  COLUMN MISSING: %s.%s — run %s (the upgrade did not apply)'):format(
             col.table, col.column, col.fix))
+    end
+    for _, opt in ipairs(report.dbOptional or {}) do
+        -- advisory only: a feature is dormant, the stores run fine
+        Util.warn(('  optional table absent: %s — %s (that feature is dormant until you run it)'):format(
+            opt.table, opt.fix))
     end
 
     if report.ok then Util.ok(_U('boot_ok', report.version))

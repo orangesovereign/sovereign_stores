@@ -75,7 +75,7 @@ export default function Bureau({ initial }) {
     if (key === 'tax') { const r = await post('adminTax'); if (r?.ok) setTax(r) }
     if (key === 'inactivity') { const r = await post('adminInactivity'); if (r?.ok) setInactivity(r) }
     if (key === 'letters') { const r = await post('adminLetters'); if (r?.ok) setLetters(r) }
-    if (key === 'analytics') { const r = await post('adminAnalytics', { days: 30 }); if (r?.ok) setAnalytics(r) }
+    if (key === 'analytics') { const r = await post('adminAnalytics', { days: 30 }); if (r) setAnalytics(r) }
     if (key === 'directory') refreshOverview()
     setSection(key)
   }
@@ -345,6 +345,18 @@ export default function Bureau({ initial }) {
                   </tbody>
                 </table>
               )}
+            </div>
+          )}
+
+          {section === 'analytics' && analytics && !analytics.ok && (
+            <div className="sheetcard">
+              <div className="sheetcard__bar"><div><span className="sheetcard__eyebrow">Not yet migrated</span>
+                <h2 className="sheetcard__title">Commerce Analytics</h2></div></div>
+              <div className="empty">
+                The analytics record hasn't been created yet — run the <code>2026-07-30</code> block
+                in <code>sql/upgrades.sql</code> and restart. Every store keeps trading meanwhile;
+                only this dashboard waits.
+              </div>
             </div>
           )}
 

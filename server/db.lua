@@ -8,6 +8,8 @@
 
 Db = {}
 
+-- CRITICAL: the store system cannot run without these. A missing one
+-- blocks store loading at boot (and says so loudly).
 local REQUIRED_TABLES <const> = {
     'sovereign_stores',
     'sovereign_store_locations',
@@ -21,7 +23,13 @@ local REQUIRED_TABLES <const> = {
     'sovereign_store_events',
     'sovereign_weapon_serials',
     'sovereign_government_fund',
-    'sovereign_store_sale_items',
+}
+
+-- OPTIONAL: a feature degrades if these are absent, but stores still run.
+-- Their absence is reported at boot, never a blocker (so pulling a new
+-- version before running its upgrade SQL can't take the storefronts down).
+local OPTIONAL_TABLES <const> = {
+    'sovereign_store_sale_items',   -- analytics (H5/H7); writes no-op without it
 }
 
 function Db.available()
@@ -74,6 +82,31 @@ end
 
 function Db.requiredTables()
     return REQUIRED_TABLES
+end
+
+-- Missing OPTIONAL tables: reported at boot as a nudge, never a blocker.
+-- Each carries the upgrade block that creates it.
+local OPTIONAL_FIX <const> = {
+    sovereign_store_sale_items = 'sql/upgrades.sql · 2026-07-30',
+}
+function Db.verifyOptional()
+    local missing = {}
+    if not Db.available() then return missing end
+    for _, tbl in ipairs(OPTIONAL_TABLES) do
+        if not Db.scalar('SHOW TABLES LIKE ?', { tbl }) then
+            missing[#missing + 1] = { table = tbl, fix = OPTIONAL_FIX[tbl] or 'sql/upgrades.sql' }
+        end
+    end
+    return missing
+end
+
+-- One-shot table presence check, cached, for feature self-gating.
+local tableCache = {}
+function Db.hasTable(tbl)
+    if tableCache[tbl] == nil then
+        tableCache[tbl] = Db.available() and (Db.scalar('SHOW TABLES LIKE ?', { tbl }) ~= nil) or false
+    end
+    return tableCache[tbl]
 end
 
 -- Columns added by dated upgrade blocks: verified at boot so a migration
