@@ -67,6 +67,7 @@ const MAP = {
   mining: IconPick,
   produce: IconLeaf,
   medical: IconCross, meds: IconCross, tonics: IconBottle,
+  farming: IconLeaf, seed: IconLeaf,
   sale: IconTag,
 }
 

@@ -26,6 +26,8 @@ NPCStores.medical = {
         { coords = vector3(-5501.75, -2962.59, -0.76),  heading = 275.0 },
         -- Armadillo Medical Supply Store
         { coords = vector3(-3661.32, -2595.52, -13.36), heading = 185.67 },
+        -- Blackwater Medical Supply
+        { coords = vector3(-786.49,  -1303.15, 43.72),  heading = 87.12 },
     },
 
     -- ── Storefront departments (the left rail) ───────────────────────
