@@ -28,6 +28,8 @@ NPCStores.medical = {
         { coords = vector3(-3661.32, -2595.52, -13.36), heading = 185.67 },
         -- Blackwater Medical Supply
         { coords = vector3(-786.49,  -1303.15, 43.72),  heading = 87.12 },
+        -- Valentine Medical Supply
+        { coords = vector3(-287.99,  804.05,   119.34), heading = 271.32 },
     },
 
     -- ── Storefront departments (the left rail) ───────────────────────
