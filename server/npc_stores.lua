@@ -137,7 +137,7 @@ function Npc.publishAll()
     if PStores and PStores.all then
         for id, s in pairs(PStores.all()) do
             local rc = s.register_coords
-            if rc and s.status ~= 'repossessed' then
+            if rc and not PStores.isRetired(s) then
                 merged[#merged + 1] = {
                     store    = 'p:' .. id,
                     idx      = 1,

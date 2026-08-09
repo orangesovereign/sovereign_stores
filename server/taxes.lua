@@ -150,7 +150,7 @@ function Taxes.runCycle()
     local grace = (Config.Tax and Config.Tax.GraceHours) or 72
 
     for id, s in pairs(PStores.all()) do
-        if s.owner_charid and s.status ~= 'repossessed' and dueAmount(s) > 0 then
+        if s.owner_charid and not PStores.isRetired(s) and dueAmount(s) > 0 then
             -- 1) delinquent stores whose grace has run out
             if s.tax_state == 'delinquent' then
                 local expired = Db.scalar(

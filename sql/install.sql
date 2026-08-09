@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS `sovereign_stores` (
     `category`         VARCHAR(32)   NOT NULL DEFAULT 'general',
     `owner_charid`     INT           NULL DEFAULT NULL,
     `coowner_charid`   INT           NULL DEFAULT NULL,
-    `status`           ENUM('open','closed','repossessed') NOT NULL DEFAULT 'closed',
+    `status`           ENUM('open','closed','repossessed','archived') NOT NULL DEFAULT 'closed',
+    `archived_at`      DATETIME      NULL DEFAULT NULL,               -- set when the business ends (one-off rule)
+    `archive_reason`   VARCHAR(64)   NULL DEFAULT NULL,               -- sold_back | tax | inactivity | admin
     `purchase_price`   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `tax_rate`         DECIMAL(5,2)  NOT NULL DEFAULT 0.00,        -- % of purchase_price, monthly
     `tax_due_date`     DATE          NULL DEFAULT NULL,

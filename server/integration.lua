@@ -12,6 +12,7 @@
     GetStoresForCharacter(charid)     -> array of { id, role }
     AssignOwner(storeId, charid)      -> ok, err     (realty script hook)
     ReleaseStore(storeId, opts)       -> ok, payout, settled  (realty sale-back)
+    ArchiveStore(storeId, reason)     -> ok, err     (retire without touching money)
     CreateStore(data)                 -> storeId, err (county-script charter hook)
     LookupWeaponSerial(serial)        -> registry row (server/serials.lua)
     GetGovernmentFund()               -> number      (server/fund.lua)
@@ -25,6 +26,7 @@
     sovereign_stores:employeeClockIn{ store, charid }
     sovereign_stores:repossessed    { store, reason, swept }
     sovereign_stores:released       { store, code, name, formerOwner, reason, payout, settled }
+    sovereign_stores:archived       { store, code, name, reason }
 =====================================================================]]--
 
 local function summarize(s)
@@ -54,7 +56,8 @@ end)
 exports('ListStores', function(opts)
     opts = opts or {}
     local out = {}
-    for _, s in pairs(PStores.all()) do
+    -- going concerns only unless the caller explicitly wants the archive
+    for _, s in pairs(opts.includeRetired and PStores.all() or PStores.active()) do
         local keep = true
         if opts.status and s.status ~= opts.status then keep = false end
         if opts.category and s.category ~= opts.category then keep = false end
@@ -91,12 +94,20 @@ end)
 ---BACK rather than on: vacates the store without confiscating it. Wages
 ---settle first, the county collects any tax already owed, and whatever
 ---remains in both ledgers is paid to the departing owner (owner ruling
----2026-08-09). The store, its code and its goods survive for the next
----buyer. Use PStores.repossess — not this — for a seizure.
+---2026-08-09). The business then RETIRES to the archive — a store is one
+---person's, not a fixture — leaving the premises free for someone else's
+---charter. Use PStores.repossess — not this — for a seizure.
 ---  opts = { toCharid?, reason?, actorCharid? }
 --- returns ok, payout, settled
 exports('ReleaseStore', function(storeId, opts)
     return PStores.release(tonumber(storeId), opts)
+end)
+
+---Retire a store outright, without moving any money. For a realty sale
+---use ReleaseStore (it settles wages and pays the owner out first); this
+---is the blunt instrument for a premises that is simply going away.
+exports('ArchiveStore', function(storeId, reason)
+    return PStores.archive(tonumber(storeId), reason or 'admin', nil)
 end)
 
 ---For county scripts (e.g. sovereign_stables) that charter a storefront at their
@@ -120,9 +131,13 @@ exports('CreateStore', function(data)
     local code = data.code and tostring(data.code):upper() or nil
     if code and not code:match('^%u%u%u$') then return nil, 'bad_code' end
 
-    -- Idempotency: reuse an existing store carrying the same code.
+    -- Idempotency: reuse a LIVE store carrying the same code. A retired
+    -- one is never resurrected (one-off rule) — but its code stays
+    -- reserved forever, because weapon serials still point at it, so a
+    -- fresh charter here will simply carry no code until an admin stamps
+    -- a new one.
     if code then
-        for _, s in pairs(PStores.all()) do
+        for _, s in pairs(PStores.active()) do
             if s.code and s.code:upper() == code then return s.id end
         end
     end

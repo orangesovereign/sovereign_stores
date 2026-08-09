@@ -60,6 +60,7 @@ const CHIP = {
   open: { text: 'Open', cls: 'chip--open' },
   closed: { text: 'Closed', cls: 'chip--closed' },
   repossessed: { text: 'Repossessed', cls: 'chip--danger chip--fill' },
+  archived: { text: 'Archived', cls: 'chip--closed' },
   tax_delinquent: { text: 'Tax Delinquent', cls: 'chip--danger' },
   inactive_warning: { text: 'Inactive Warning', cls: 'chip--warn' },
   current: { text: 'Current', cls: 'chip--open' },

@@ -46,6 +46,27 @@ end
 function PStores.get(id) return cache[tonumber(id)] end
 function PStores.all() return cache end
 
+---A store is one person's business (owner ruling 2026-08-09). When it
+---ends — sold back, seized, revoked — it RETIRES: the record survives
+---for the history and for weapon-serial provenance, but it leaves the
+---working directory so someone else can charter their own store on the
+---same premises. 'repossessed' is the legacy spelling of the same idea
+---and counts as retired everywhere.
+function PStores.isRetired(s)
+    if type(s) ~= 'table' then s = cache[tonumber(s)] end
+    if not s then return false end
+    return s.status == 'archived' or s.status == 'repossessed'
+end
+
+---Every store that is still a going concern.
+function PStores.active()
+    local out = {}
+    for id, s in pairs(cache) do
+        if not PStores.isRetired(s) then out[id] = s end
+    end
+    return out
+end
+
 ---Re-read one store from the database into the cache. The Phase 4
 ---schedulers write tax/status columns in SQL (so the arithmetic happens
 ---where the dates live); this pulls the result back into memory.
@@ -127,8 +148,10 @@ end
 function PStores.assignOwner(id, charid, actorCharid)
     local s = cache[tonumber(id)]
     if not s then return false, 'unknown' end
-    Db.execute("UPDATE sovereign_stores SET owner_charid = ?, status = IF(status='repossessed','closed',status) WHERE id = ?", { charid, s.id })
-    if s.status == 'repossessed' then s.status = 'closed' end
+    -- Retired is terminal (one-off rule): a finished business is never
+    -- handed to someone new — they charter their own on the premises.
+    if PStores.isRetired(s) then return false, 'retired' end
+    Db.execute("UPDATE sovereign_stores SET owner_charid = ? WHERE id = ?", { charid, s.id })
     s.owner_charid = charid
     EventLog.write(s.id, 'assigned', actorCharid, charid, {})
     return true
@@ -168,18 +191,45 @@ end
 
 ---Full teardown (design §5): strip roles, clear roster, sweep ledgers
 ---to the government fund, close. Used by tax/inactivity automation too.
-function PStores.repossess(id, reason, actorCharid)
+---Retire a store for good. Shared ending for every path: the roster is
+---dissolved, the doors close, the tax clock stops, and it drops out of
+---the working directory. The row itself is KEPT — weapon serials point
+---at it, and the county's history should not evaporate.
+---Callers handle the money first (sweep or pay out) — this only ends it.
+---@param archiveReason string  sold_back | tax | inactivity | admin
+function PStores.archive(id, archiveReason, actorCharid)
     local s = cache[tonumber(id)]
     if not s then return false, 'unknown' end
-    local swept = Ledger.sweepToFund(s.id, reason or 'repossession')
+    if PStores.isRetired(s) then return true end   -- already ended; nothing to undo
+
     Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ?', { s.id })
     roster[s.id] = {}
     Db.execute([[UPDATE sovereign_stores SET owner_charid = NULL, coowner_charid = NULL,
-                 status = 'repossessed', tax_state = 'current', delinquent_since = NULL WHERE id = ?]], { s.id })
-    s.owner_charid, s.coowner_charid, s.status, s.tax_state = nil, nil, 'repossessed', 'current'
-    EventLog.write(s.id, 'repossessed', actorCharid, nil, { reason = reason, swept = swept })
-    TriggerEvent('sovereign_stores:repossessed', { store = s.id, reason = reason, swept = swept })
+                 status = 'archived', archived_at = NOW(), archive_reason = ?,
+                 tax_state = 'current', delinquent_since = NULL, tax_due_date = NULL
+                 WHERE id = ?]], { archiveReason or 'admin', s.id })
+    s.owner_charid, s.coowner_charid = nil, nil
+    s.status, s.archive_reason = 'archived', archiveReason or 'admin'
+    s.tax_state, s.delinquent_since, s.tax_due_date = 'current', nil, nil
+
+    EventLog.write(s.id, 'archived', actorCharid, nil, { reason = archiveReason })
+    TriggerEvent('sovereign_stores:archived',
+        { store = s.id, code = s.code, name = s.name, reason = archiveReason })
     republish()
+    return true
+end
+
+function PStores.repossess(id, reason, actorCharid)
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown' end
+    if PStores.isRetired(s) then return false, 'already_retired' end
+    local swept = Ledger.sweepToFund(s.id, reason or 'repossession')
+    local former = s.owner_charid
+    -- A seizure ends the business like any other ending (one-off rule):
+    -- the county does not keep a going concern on the books for reassignment.
+    PStores.archive(s.id, (reason and reason:find('absent')) and 'inactivity' or 'tax', actorCharid)
+    EventLog.write(s.id, 'repossessed', actorCharid, former, { reason = reason, swept = swept })
+    TriggerEvent('sovereign_stores:repossessed', { store = s.id, reason = reason, swept = swept })
     return true, swept
 end
 
@@ -194,8 +244,9 @@ end
 ---  2. the county collects tax it is already owed — selling must not be a
 ---     way to walk away from an assessment
 ---  3. whatever remains in BOTH ledgers is paid to the departing owner
----  4. the roster is dissolved and the premises close, ready for the next
----     owner (the store record, its code and its goods all survive)
+---  4. the business RETIRES to the archive — a store belongs to one
+---     person, not to the building — so the premises stand free for
+---     someone else to charter their own
 ---
 ---If the owner is offline we cannot put cash in their hand, so the money
 ---is LEFT in the ledgers rather than vaporised — visible and recoverable.
@@ -258,14 +309,8 @@ function PStores.release(id, opts)
         payout = 0
     end
 
-    -- 4) dissolve the roster and close the premises
-    Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ?', { s.id })
-    roster[s.id] = {}
-    Db.execute([[UPDATE sovereign_stores SET owner_charid = NULL, coowner_charid = NULL,
-                 status = 'closed', tax_state = 'current', delinquent_since = NULL,
-                 tax_due_date = NULL WHERE id = ?]], { s.id })
-    s.owner_charid, s.coowner_charid = nil, nil
-    s.status, s.tax_state, s.delinquent_since, s.tax_due_date = 'closed', 'current', nil, nil
+    -- 4) the business ends here (one-off rule) — archive frees the premises
+    PStores.archive(s.id, 'sold_back', opts.actorCharid)
 
     EventLog.write(s.id, 'released', opts.actorCharid, owner,
         { reason = reason, payout = payout, settled = settled })
@@ -366,7 +411,7 @@ end
 function PStores.setStatus(id, open, actorCharid)
     local s = cache[tonumber(id)]
     if not s then return false, 'unknown' end
-    if s.status == 'repossessed' then return false, 'repossessed' end
+    if PStores.isRetired(s) then return false, 'retired' end
     local status = open and 'open' or 'closed'
     Db.execute('UPDATE sovereign_stores SET status = ? WHERE id = ?', { status, s.id })
     s.status = status

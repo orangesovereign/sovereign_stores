@@ -180,7 +180,7 @@ local function guard(src, storeKey)
     local pid = tostring(storeKey):match('^p:(%d+)$')
     if pid then
         local s = PStores.get(tonumber(pid))
-        if not s or s.status == 'repossessed' then return nil, 'unknown_store' end
+        if not s or PStores.isRetired(s) then return nil, 'unknown_store' end
         if not playerStoreNear(src, s) then return nil, 'too_far' end
         return playerStoreView(s), nil, s
     end

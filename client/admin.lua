@@ -39,6 +39,7 @@ local FORWARD = {
     adminTax        = { 'sovereign_stores:admin:tax' },
     adminInactivity = { 'sovereign_stores:admin:inactivity' },
     adminLetters    = { 'sovereign_stores:admin:letters' },
+    adminArchive    = { 'sovereign_stores:admin:archive' },
 }
 
 RegisterNUICallback('adminAnalytics', function(data, cb)

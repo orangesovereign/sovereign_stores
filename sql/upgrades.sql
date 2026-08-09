@@ -63,3 +63,31 @@ CREATE TABLE IF NOT EXISTS `sovereign_store_sale_items` (
     KEY `idx_item_time` (`item`, `created_at`),
     KEY `idx_kind_time` (`kind`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2026-08-09 · Stores are one-off (owner ruling)
+-- A store is a PERSON'S business, not a reusable fixture. Every ending —
+-- sold back, seized for tax, charter revoked for absence — retires it.
+-- The record survives (weapon-serial provenance depends on it) but it
+-- leaves the working directory, freeing the premises for a new charter.
+-- MODIFY COLUMN is naturally idempotent; the columns use the same
+-- information_schema guard as every other block here.
+-- ─────────────────────────────────────────────────────────────────────
+ALTER TABLE `sovereign_stores`
+    MODIFY COLUMN `status` ENUM('open','closed','repossessed','archived') NOT NULL DEFAULT 'closed';
+
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sovereign_stores'
+             AND COLUMN_NAME = 'archived_at');
+SET @s := IF(@c = 0,
+    'ALTER TABLE `sovereign_stores` ADD COLUMN `archived_at` DATETIME NULL DEFAULT NULL',
+    'SELECT 1');
+PREPARE up_20260809a FROM @s; EXECUTE up_20260809a; DEALLOCATE PREPARE up_20260809a;
+
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sovereign_stores'
+             AND COLUMN_NAME = 'archive_reason');
+SET @s := IF(@c = 0,
+    'ALTER TABLE `sovereign_stores` ADD COLUMN `archive_reason` VARCHAR(64) NULL DEFAULT NULL',
+    'SELECT 1');
+PREPARE up_20260809b FROM @s; EXECUTE up_20260809b; DEALLOCATE PREPARE up_20260809b;

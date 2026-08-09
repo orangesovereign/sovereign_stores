@@ -62,7 +62,7 @@ function Inactivity.report()
     local warnDays = (Config.Inactivity and Config.Inactivity.WarnDays) or 30
     local seizeDays = (Config.Inactivity and Config.Inactivity.RepossessDays) or 45
     for id, s in pairs(PStores.all()) do
-        if s.owner_charid and s.status ~= 'repossessed' then
+        if s.owner_charid and not PStores.isRetired(s) then
             local days = effectiveDays(s)
             if days and days >= warnDays then
                 out[#out + 1] = {
@@ -92,7 +92,7 @@ function Inactivity.runCycle()
     local seizeDays = (Config.Inactivity and Config.Inactivity.RepossessDays) or 45
 
     for id, s in pairs(PStores.all()) do
-        if s.owner_charid and s.status ~= 'repossessed' and not isExempt(s) then
+        if s.owner_charid and not PStores.isRetired(s) and not isExempt(s) then
             local days = effectiveDays(s)
             if days then
                 if days >= seizeDays then

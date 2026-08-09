@@ -16,12 +16,15 @@ local function charInfo(charid)
     }
 end
 
+-- The working directory lists going concerns only. A store is one
+-- person's business (owner ruling 2026-08-09): once it ends it retires to
+-- the Archive, freeing the premises for someone else's charter.
 local function directoryRows()
     local out = {}
-    for id, s in pairs(PStores.all()) do
+    for id, s in pairs(PStores.active()) do
         local owner = s.owner_charid and charInfo(s.owner_charid) or nil
         local flag = 'none'
-        if s.status ~= 'repossessed' and s.tax_state == 'delinquent' then flag = 'tax_delinquent' end
+        if not PStores.isRetired(s) and s.tax_state == 'delinquent' then flag = 'tax_delinquent' end
         out[#out + 1] = {
             id = id, code = s.code, name = s.name, category = s.category,
             status = s.status, flag = flag,
@@ -36,7 +39,7 @@ end
 
 local function overview()
     local stores, open, delinquent = 0, 0, 0
-    for _, s in pairs(PStores.all()) do
+    for _, s in pairs(PStores.active()) do
         stores = stores + 1
         if s.status == 'open' then open = open + 1 end
         if s.tax_state == 'delinquent' then delinquent = delinquent + 1 end
@@ -114,6 +117,9 @@ local ACTIONS = {
         return ok, err
     end,
     repossess    = function(s, p, actor) return PStores.repossess(s.id, p.reason or 'admin repossession', actor) end,
+    -- Retire a store without seizing its money: the business simply ends
+    -- and the premises are free for a new charter.
+    archive      = function(s, p, actor) return PStores.archive(s.id, p.reason or 'admin', actor) end,
     force_close  = function(s, _, actor) return PStores.setStatus(s.id, false, actor) end,
     exempt_inactivity = function(s, p, actor) return PStores.setInactivityExempt(s.id, p.untilDate, actor) end,
     adjust = function(s, p, actor)
@@ -145,12 +151,11 @@ CreateThread(function()
         -- EVERY player store is listed. One that owes nothing says so and
         -- why — a store vanishing from this screen taught us nothing
         -- (ledger Phase 4 T1).
-        for id, s in pairs(PStores.all()) do
+        for id, s in pairs(PStores.active()) do
             local q = Taxes.quote(s)
             local owner = s.owner_charid and charInfo(s.owner_charid) or nil
             local exclude = nil
-            if s.status == 'repossessed' then exclude = 'repossessed'
-            elseif not s.owner_charid then exclude = 'no_owner'
+            if not s.owner_charid then exclude = 'no_owner'
             elseif q.amount <= 0 then exclude = 'no_levy' end
 
             if not exclude and q.state == 'delinquent' then delinquent = delinquent + 1 end
@@ -187,6 +192,22 @@ CreateThread(function()
     -- Commerce analytics (H5) — county-wide, window in days
     guarded('sovereign_stores:admin:analytics', function(_, days)
         return Analytics.county(tonumber(days) or 30)
+    end)
+
+    -- The Archive: businesses that have ended. Kept out of the working
+    -- directory, kept forever in the record — weapon serials point back
+    -- here, and a code is never reissued.
+    guarded('sovereign_stores:admin:archive', function()
+        local rows = Db.query(
+            [[SELECT id, code, name, category, status, archived_at, archive_reason
+              FROM sovereign_stores
+              WHERE class = 'player' AND status IN ('archived','repossessed')
+              ORDER BY COALESCE(archived_at, created_at) DESC LIMIT 100]], {}) or {}
+        for _, r in ipairs(rows) do
+            r.serials = tonumber(Db.scalar(
+                'SELECT COUNT(*) FROM sovereign_weapon_serials WHERE store_id = ?', { r.id })) or 0
+        end
+        return { ok = true, rows = rows }
     end)
 
     -- Inactivity monitor (H6)

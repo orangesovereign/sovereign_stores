@@ -33,6 +33,7 @@ const SECTIONS = [
   { key: 'tax', label: 'Tax Administration' },
   { key: 'inactivity', label: 'Inactivity Monitor' },
   { key: 'letters', label: 'County Letters' },
+  { key: 'archive', label: 'Archive' },
   { key: 'analytics', label: 'Commerce Analytics' },
 ]
 
@@ -46,6 +47,7 @@ export default function Bureau({ initial }) {
   const [inactivity, setInactivity] = useState(null)
   const [letters, setLetters] = useState(null)
   const [analytics, setAnalytics] = useState(null)
+  const [archive, setArchive] = useState(null)
   const [assigning, setAssigning] = useState(false)
   const [q, setQ] = useState('')
   const [toast, setToast] = useState(null)
@@ -76,6 +78,7 @@ export default function Bureau({ initial }) {
     if (key === 'inactivity') { const r = await post('adminInactivity'); if (r?.ok) setInactivity(r) }
     if (key === 'letters') { const r = await post('adminLetters'); if (r?.ok) setLetters(r) }
     if (key === 'analytics') { const r = await post('adminAnalytics', { days: 30 }); if (r) setAnalytics(r) }
+    if (key === 'archive') { const r = await post('adminArchive'); if (r?.ok) setArchive(r) }
     if (key === 'directory') refreshOverview()
     setSection(key)
   }
@@ -340,6 +343,39 @@ export default function Bureau({ initial }) {
                         <td><b>{l.subject}</b></td>
                         <td><span className={'chip chip--' + (l.status === 'sent' ? 'open' : 'warn')}>{l.status.toUpperCase()}</span></td>
                         <td className="dim">{fmtAgo(l.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {section === 'archive' && archive?.ok && (
+            <div className="sheetcard">
+              <div className="sheetcard__bar">
+                <div><span className="sheetcard__eyebrow">Businesses that have ended</span>
+                  <h2 className="sheetcard__title">Archive</h2></div>
+              </div>
+              <p className="mgmt__hint">
+                A store belongs to one person, not to the building. When a charter ends — sold up,
+                seized for tax, revoked for absence — the business retires here and the premises
+                stand free for someone else to charter their own. Records are kept for good: a
+                store code is never reissued, because weapons sold under it still carry its mark.
+              </p>
+              {archive.rows.length === 0 ? (
+                <div className="empty">No business has ended yet.</div>
+              ) : (
+                <table className="dtable">
+                  <thead><tr><th>Code</th><th>Store</th><th>Ended</th><th>Reason</th><th>Serials</th></tr></thead>
+                  <tbody>
+                    {archive.rows.map((r) => (
+                      <tr key={r.id} className="norow norow--muted">
+                        <td>{r.code ? <span className="codechip">{r.code}</span> : '—'}</td>
+                        <td><b>{r.name}</b><span className="subline">{r.category}</span></td>
+                        <td className="dim">{r.archived_at ? fmtAgo(r.archived_at) : '—'}</td>
+                        <td><span className="chip chip--closed">{(r.archive_reason || r.status).replace('_', ' ').toUpperCase()}</span></td>
+                        <td className="num dim">{r.serials || 0}</td>
                       </tr>
                     ))}
                   </tbody>
