@@ -94,3 +94,6 @@ Locales['en'].wh_sale            = 'Sale'
 Locales['en'].wh_opened          = 'Store opened'
 Locales['en'].wh_closed          = 'Store closed'
 Locales['en'].wh_staff           = 'Roster change'
+
+-- realty integration (I3)
+Locales['en'].store_released_paid = 'The business accounts are settled — $%.2f paid out to you.'

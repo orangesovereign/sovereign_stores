@@ -43,7 +43,16 @@ NPCStores.medical = {
     -- exist in the `items` DB table — boot names (and drops) any it can't
     -- find, so the store still opens while you dial it in.
     --   { item = '<db_item_name>', price = 5.00, category = 'meds' },
-    buy = {},
+    buy = {
+            buy = {
+        { item = 'bandage',               price = 10.50, category = 'meds' },
+        { item = 'field_kit',                  price = 15,   category = 'meds' },
+        { item = 'antipoison',      price = 15, category = 'meds' },
+        { item = 'cleanser',   price = 7.50, category = 'meds' },
+        { item = 'salve',   price = 10, category = 'meds' },
+        { item = 'splint',                 price = 20,   category = 'meds' },
+    },
+    },
 
     -- ── What the clerk buys back (usually nothing for a supply store) ─
     sell = {},

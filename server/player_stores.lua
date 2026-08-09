@@ -183,6 +183,99 @@ function PStores.repossess(id, reason, actorCharid)
     return true, swept
 end
 
+---Vacate a store the owner is GIVING UP — a voluntary sale-back, not a
+---seizure. Contrast PStores.repossess, which sweeps both ledgers into the
+---treasury; here the departing owner keeps what they earned (owner ruling
+---2026-08-09).
+---
+---Order matters, and it is the fair one:
+---  1. anyone still on the clock is punched out, so wages settle from the
+---     operating ledger BEFORE the owner cashes out
+---  2. the county collects tax it is already owed — selling must not be a
+---     way to walk away from an assessment
+---  3. whatever remains in BOTH ledgers is paid to the departing owner
+---  4. the roster is dissolved and the premises close, ready for the next
+---     owner (the store record, its code and its goods all survive)
+---
+---If the owner is offline we cannot put cash in their hand, so the money
+---is LEFT in the ledgers rather than vaporised — visible and recoverable.
+---@return boolean ok, number|string payout, number settled
+function PStores.release(id, opts)
+    opts = opts or {}
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown', 0 end
+
+    local owner = tonumber(opts.toCharid) or s.owner_charid
+    local reason = opts.reason or 'sold back'
+
+    -- 1) settle wages first
+    if Shifts and Shifts.roster then
+        for _, sh in ipairs(Shifts.roster(s.id)) do
+            Shifts.clockOut(sh.charid, 'store_sold')
+        end
+    end
+
+    local operating = Ledger.balance(s.id, 'operating')
+    local reserve   = Ledger.balance(s.id, 'tax')
+
+    -- 2) the county's claim, if any
+    local settled = 0
+    if s.tax_state == 'delinquent' and Taxes and Taxes.quote then
+        local owed = tonumber((Taxes.quote(s) or {}).amount) or 0
+        settled = math.min(owed, Util.round2(operating + reserve))
+        if settled > 0 then
+            local fromReserve = math.min(reserve, settled)
+            if fromReserve > 0 then
+                Ledger.write(s.id, 'tax', 'tax_collected', -fromReserve, { note = 'settled on sale' })
+                reserve = Util.round2(reserve - fromReserve)
+            end
+            local fromOperating = Util.round2(settled - fromReserve)
+            if fromOperating > 0 then
+                Ledger.write(s.id, 'operating', 'tax_collected', -fromOperating, { note = 'settled on sale' })
+                operating = Util.round2(operating - fromOperating)
+            end
+            Fund.credit('tax', settled, s.id, ('settled on sale of %s'):format(s.name))
+        end
+    end
+
+    -- 3) pay the departing owner out
+    local payout = Util.round2(operating + reserve)
+    local src = owner and Bridge.srcByCharId(owner) or nil
+    if payout > 0 and src then
+        if operating > 0 then
+            Ledger.write(s.id, 'operating', 'withdrawal', -operating,
+                { actor = owner, note = 'paid out on ' .. reason })
+        end
+        if reserve > 0 then
+            Ledger.write(s.id, 'tax', 'withdrawal', -reserve,
+                { actor = owner, note = 'paid out on ' .. reason })
+        end
+        Bridge.money.add(src, payout)
+        Bridge.notify(src, _U('store_released_paid', payout))
+    elseif payout > 0 then
+        Util.warn(('release: %s holds $%.2f but its owner is offline — left in the ledgers'):format(
+            s.name, payout))
+        payout = 0
+    end
+
+    -- 4) dissolve the roster and close the premises
+    Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ?', { s.id })
+    roster[s.id] = {}
+    Db.execute([[UPDATE sovereign_stores SET owner_charid = NULL, coowner_charid = NULL,
+                 status = 'closed', tax_state = 'current', delinquent_since = NULL,
+                 tax_due_date = NULL WHERE id = ?]], { s.id })
+    s.owner_charid, s.coowner_charid = nil, nil
+    s.status, s.tax_state, s.delinquent_since, s.tax_due_date = 'closed', 'current', nil, nil
+
+    EventLog.write(s.id, 'released', opts.actorCharid, owner,
+        { reason = reason, payout = payout, settled = settled })
+    TriggerEvent('sovereign_stores:released',
+        { store = s.id, code = s.code, name = s.name, formerOwner = owner,
+          reason = reason, payout = payout, settled = settled })
+    republish()
+    return true, payout, settled
+end
+
 ---Admin override for approved absences (H6). untilDate 'YYYY-MM-DD' or nil to clear.
 function PStores.setInactivityExempt(id, untilDate, actorCharid)
     local s = cache[tonumber(id)]

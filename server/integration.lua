@@ -11,6 +11,7 @@
     IsStoreStaff(charid, storeId)     -> role string | nil
     GetStoresForCharacter(charid)     -> array of { id, role }
     AssignOwner(storeId, charid)      -> ok, err     (realty script hook)
+    ReleaseStore(storeId, opts)       -> ok, payout, settled  (realty sale-back)
     CreateStore(data)                 -> storeId, err (county-script charter hook)
     LookupWeaponSerial(serial)        -> registry row (server/serials.lua)
     GetGovernmentFund()               -> number      (server/fund.lua)
@@ -23,6 +24,7 @@
     sovereign_stores:storeClosed    { store, name, code }
     sovereign_stores:employeeClockIn{ store, charid }
     sovereign_stores:repossessed    { store, reason, swept }
+    sovereign_stores:released       { store, code, name, formerOwner, reason, payout, settled }
 =====================================================================]]--
 
 local function summarize(s)
@@ -83,6 +85,18 @@ exports('AssignOwner', function(storeId, charid)
     local ok, err = PStores.assignOwner(tonumber(storeId), tonumber(charid), nil)
     if ok then Taxes.startCycle(tonumber(storeId)) end
     return ok, err
+end)
+
+---The other half of AssignOwner, for when a realty sale hands the deed
+---BACK rather than on: vacates the store without confiscating it. Wages
+---settle first, the county collects any tax already owed, and whatever
+---remains in both ledgers is paid to the departing owner (owner ruling
+---2026-08-09). The store, its code and its goods survive for the next
+---buyer. Use PStores.repossess — not this — for a seizure.
+---  opts = { toCharid?, reason?, actorCharid? }
+--- returns ok, payout, settled
+exports('ReleaseStore', function(storeId, opts)
+    return PStores.release(tonumber(storeId), opts)
 end)
 
 ---For county scripts (e.g. sovereign_stables) that charter a storefront at their
