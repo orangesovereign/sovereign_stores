@@ -115,8 +115,8 @@
   <header class="masthead">
     <div class="over">~ Sovereign County Mercantile Authority — Office of the County Clerk ~</div>
     <h1>PHASE 5 LEDGER</h1>
-    <div class="sub">The release candidate: commerce analytics + config hardening — sovereign_stores v0.9.0</div>
-    <p class="note">One tester. Analytics reads what the county already recorded, so you make a few sales and watch them surface — first for the owner at a glance, then for the Bureau across the whole county. One step deliberately breaks a config value to prove the boot names it in red; put it back. This is the last ledger before the v1.0.0 release candidate. One tester is enough — a step's chip says whether it happens <b>in game</b> or at the <b>server console</b>. Mark each line <em>Pass</em>, <em>Fail</em>, or <em>Skip</em> with notes; press <em>Build the Report</em> at the foot and paste it back. Marks persist between visits.</p>
+    <div class="sub">The release candidate: analytics, hardening, the one-off rule &amp; the realty round trip — sovereign_stores v0.11.0</div>
+    <p class="note">One tester. Analytics reads what the county already recorded, so you make a few sales and watch them surface — first for the owner at a glance, then for the Bureau across the whole county. Two steps deliberately break things to prove the county notices: a config value the boot must name in red, and a store the tax office must seize. Put both back afterwards. The last two articles are the newest law — a store belongs to a PERSON, not a building, so every ending retires it and frees the premises; ART VI proves that end to end against sovereign_realestate. This is the last ledger before the v1.0.0 release candidate. One tester is enough — a step's chip says whether it happens <b>in game</b> or at the <b>server console</b>. Mark each line <em>Pass</em>, <em>Fail</em>, or <em>Skip</em> with notes; press <em>Build the Report</em> at the foot and paste it back. Marks persist between visits.</p>
     <div class="cast">
       <div class="who a"><b>OWNER</b> — the store's proprietor, at and around the store (tester A)</div>
       <div class="who b"><b>CONSOLE</b> — txAdmin / server console (same person is fine)</div>
@@ -154,15 +154,15 @@
 
 <script>
   const LEDGER = [
-    { art: 'I', title: 'Upgrade &amp; Boot', tag: 'A2 · analytics table', who: 'b',
-      why: "One new table — the item-level sales record analytics reads. It must land cleanly and the new module must load.", items: [
-      { id: 'S1', who: 'b', gate: true, t: "Pull v0.9.0. Run the <code>2026-07-30</code> block in <code>sql/upgrades.sql</code> (fresh installs: <code>install.sql</code> covers it). Run it TWICE.", x: "<b>Expect:</b> both runs complete with no errors; <code>sovereign_store_sale_items</code> exists." },
-      { id: 'S2', who: 'b', t: "Restart <code>sovereign_stores</code>; run <code>stores_diag</code>.", x: "<b>Expect:</b> all green — no missing tables, no “MODULE NEVER LOADED” (the new <code>analytics</code> module counts among the loaded)." },
+    { art: 'I', title: 'Upgrade &amp; Boot', tag: 'A2 · two new blocks', who: 'b',
+      why: "Two dated blocks land this round — the analytics record, and the archive columns behind the one-off rule. Both must be safe to re-run, and the new modules must load.", items: [
+      { id: 'S1', who: 'b', gate: true, t: "Pull v0.11.0. Run BOTH new blocks in <code>sql/upgrades.sql</code> — <code>2026-07-30</code> (analytics) and <code>2026-08-09</code> (archive). Run each TWICE.", x: "<b>Expect:</b> every run completes with no errors. <code>sovereign_store_sale_items</code> exists; <code>sovereign_stores</code> has <code>archived_at</code> and <code>archive_reason</code>, and its <code>status</code> column accepts <code>archived</code>." },
+      { id: 'S2', who: 'b', t: "Restart <code>sovereign_stores</code>; run <code>stores_diag</code>.", x: "<b>Expect:</b> all green — no missing tables or columns, no “MODULE NEVER LOADED” (<code>analytics</code> counts among the loaded)." },
     ]},
 
     { art: 'II', title: 'The Owner’s Pulse', tag: 'H7', who: 'a',
       why: "Every sale should leave a trace an owner can read at a glance, without opening the Bureau.", items: [
-      { id: 'O1', who: 'a', gate: true, t: "As a store owner, make a few sales — buy from your own shelves, or have the NPC store record some. Then open <code>/mystore</code> → <b>Overview</b> and scroll to <b>At a Glance</b> and <b>Top Sellers</b>.", x: "<b>Expect:</b> At a Glance shows sales gross + goods count for 7 and 30 days and what the store bought in; Top Sellers lists the items by gross, most-sold first, with real item names (no WEAPON_ codes)." },
+      { id: 'O1', who: 'a', gate: true, t: "As a store owner, make a few sales — buy from your own shelves. Then open <code>/mystore</code> → <b>Overview</b> and scroll to <b>At a Glance</b> and <b>Top Sellers</b>.", x: "<b>Expect:</b> At a Glance shows sales gross + goods count for 7 and 30 days and what the store bought in; Top Sellers lists items by gross, most-sold first, with real item names." },
       { id: 'O2', who: 'a', t: "Sell one specific item several times, reopen the panel.", x: "<b>Expect:</b> that item climbs the Top Sellers list and its unit count matches what you sold." },
     ]},
 
@@ -170,18 +170,37 @@
       why: "The Bureau should see the whole county's commerce, not one store at a time.", items: [
       { id: 'C1', who: 'a', gate: true, t: "Bureau (<code>/storeadmin</code>) → <b>Commerce Analytics</b>.", x: "<b>Expect:</b> four tiles (Sales / Tax Collected / Wages Paid / Buy-Order Spend over 30 days), a day-by-day bar chart with sales in gold and goods-bought-in in oxblood, a Top Goods table, and a Busiest Stores table." },
       { id: 'C2', who: 'a', t: "Click a store in Busiest Stores.", x: "<b>Expect:</b> it opens that store's detail." },
-      { id: 'C3', who: 'a', t: "Cross-check: the Sales tile against what you sold, the Tax Collected tile against the Government Fund's tax rows, the Wages tile against any shifts paid this session.", x: "<b>Expect:</b> the figures agree with the ledgers — analytics reads the same records, it doesn't invent." },
+      { id: 'C3', who: 'a', t: "Cross-check: the Sales tile against what you sold, Tax Collected against the Government Fund's tax rows, Wages against any shifts paid this session.", x: "<b>Expect:</b> the figures agree with the ledgers — analytics reads the same records, it doesn't invent." },
     ]},
 
     { art: 'IV', title: 'The Boot Speaks Up', tag: 'A4 · config hardening', who: 'b',
       why: "A misconfigured value should be named at boot, in red, not discovered as a runtime error a week later.", items: [
-      { id: 'V1', who: 'b', gate: true, t: "In <code>config/config.lua</code> set <code>Config.Inactivity.RepossessDays = 10</code> (below WarnDays 30). Restart and read the banner.", x: "<b>Expect:</b> boot reports a problem naming <code>Config.Inactivity.RepossessDays must be GREATER than WarnDays</code>, and the banner is the “WITH PROBLEMS” line. Put it back to 45." },
-      { id: 'V2', who: 'b', t: "Restart with the value restored.", x: "<b>Expect:</b> green “booted clean”. <code>stores_diag</code> shows config OK." },
+      { id: 'V1', who: 'b', gate: true, t: "In <code>config/config.lua</code> set <code>Config.Inactivity.RepossessDays = 10</code> (below WarnDays 30). Restart and read the banner.", x: "<b>Expect:</b> boot names <code>Config.Inactivity.RepossessDays must be GREATER than WarnDays</code> and shows the “WITH PROBLEMS” line. Put it back to 45." },
+      { id: 'V2', who: 'b', t: "Restart with the value restored.", x: "<b>Expect:</b> green “booted clean”; <code>stores_diag</code> shows config OK." },
     ]},
 
-    { art: 'V', title: 'Solo Sweep', tag: 'no-red rule', who: 'both',
+    { art: 'V', title: 'The One-Off Rule', tag: 'owner ruling 2026-08-09', who: 'a',
+      why: "A store is one person's business, not a fixture on the building. When it ends it must LEAVE the working list so the next person can charter their own in its place — while the record survives, because weapons sold under its code still carry that mark.", items: [
+      { id: 'A1', who: 'a', gate: true, t: "Charter a THROWAWAY store, note its code, then open its detail and press <b>Archive</b>.", x: "<b>Expect:</b> it disappears from the Store Directory, the Player Stores tile drops by one, and its map blip and counter ped are gone. Walking to where it stood offers no storefront." },
+      { id: 'A2', who: 'a', gate: true, t: "Bureau → <b>Archive</b>.", x: "<b>Expect:</b> the store is listed there, greyed, with its code, when it ended, the reason (<code>ADMIN</code>), and a serial count." },
+      { id: 'A3', who: 'a', t: "On that archived store, try to <b>assign an owner</b>.", x: "<b>Expect:</b> refused — retired is terminal. A finished business is never handed to someone new; they charter their own." },
+      { id: 'A4', who: 'b', t: "Console: <code>SELECT id, code, status, archive_reason, archived_at FROM sovereign_stores WHERE status IN ('archived','repossessed');</code>", x: "<b>Expect:</b> the row is still there — kept for good — with <code>archived</code> and a reason. Nothing was deleted." },
+      { id: 'A5', who: 'a', t: "Now let a store DIE on its own: take one delinquent (see the Phase 4 method), set <code>Config.Tax.GraceHours = 0</code>, restart, and run collection until it seizes. Put GraceHours back to 72 afterwards.", x: "<b>Expect:</b> the seizure sweeps its ledgers to the treasury AND retires it — it leaves the directory and appears in the Archive with reason <code>TAX</code>." },
+    ]},
+
+    { art: 'VI', title: 'The Realty Round Trip', tag: 'sovereign_realestate integration', who: 'a',
+      why: "The proof that the two scripts hold hands: a business property carries a storefront, the seller cashes out, and the premises come back to market clean. NEEDS a business-class property whose row has meta.store_coords (or enter_coords) — without one the console says so and charters nothing, which is itself the correct behaviour.", items: [
+      { id: 'R1', who: 'a', gate: true, t: "Buy a BUSINESS-class property from the realty office. Then open the Bureau's Store Directory.", x: "<b>Expect:</b> a new store appears, named after the property, owned by you. The realty console logs “chartered storefront #N for property …”. A counter ped stands at the shop position." },
+      { id: 'R2', who: 'a', t: "Open it with <code>/mystore</code>, put a little money in the operating ledger, shelve something, and open the store.", x: "<b>Expect:</b> it behaves like any chartered store — it is one." },
+      { id: 'R3', who: 'a', gate: true, t: "Sell the property BACK to the county. Note your cash before and after.", x: "<b>Expect:</b> you receive the property refund AND a separate tick — “The business accounts are settled — $X paid out to you” — for what was in the store's ledgers. The store leaves the directory and appears in the Archive with reason <code>SOLD BACK</code>. Its blip and ped are gone." },
+      { id: 'R4', who: 'a', gate: true, t: "Buy the SAME property again.", x: "<b>Expect:</b> a BRAND NEW store is chartered — a different id in the directory, empty shelves, empty ledgers, no inherited stock or staff. The old business stays in the Archive untouched. This is the whole ruling in one step." },
+      { id: 'R5', who: 'b', t: "Console: <code>SELECT id, name, status, archive_reason FROM sovereign_stores WHERE class='player' ORDER BY id DESC LIMIT 4;</code>", x: "<b>Expect:</b> two rows for that property — the archived original and the live new one — never one row reused." },
+      { id: 'R6', who: 'a', t: "Stop <code>sovereign_stores</code> entirely, then buy and sell a business property.", x: "<b>Expect:</b> realty works exactly as before, no errors — the storefront layer is optional by design. Start it again afterwards." },
+    ]},
+
+    { art: 'VII', title: 'Solo Sweep', tag: 'no-red rule', who: 'both',
       why: "The release candidate earns its tag on a clean console.", items: [
-      { id: 'X1', who: 'both', gate: true, t: "Full-session sweep: server console top to bottom, F8 Lua + console tabs on the client, across every step above.", x: "<b>Expect:</b> zero red errors from <code>sovereign_stores</code>. This is the last gate before v1.0.0-rc." },
+      { id: 'X1', who: 'both', gate: true, t: "Full-session sweep: server console top to bottom, F8 Lua + console tabs on the client, across every step above — including the realty resource's own console lines.", x: "<b>Expect:</b> zero red errors from <code>sovereign_stores</code> or <code>sovereign_realestate</code>. This is the last gate before v1.0.0-rc." },
     ]},
   ];
   const KEY = 'sov-stores-phase5';
@@ -271,7 +290,7 @@
     const lines = [];
     lines.push('SOVEREIGN STORES — Phase 5 Ledger (SOLO) — Results');
     lines.push('Date: ' + new Date().toISOString().slice(0, 10));
-    lines.push('Resource version: 0.9.0    Server build: ______');
+    lines.push('Resource version: 0.11.0    Server build: ______');
     LEDGER.forEach(a => {
       lines.push('');
       lines.push('ART. ' + a.art + ' — ' + stripHTML(a.title));
