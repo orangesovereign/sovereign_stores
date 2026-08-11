@@ -5,7 +5,7 @@ player-owned **storefronts** — employees and wages, a back room and priced she
 property taxes that collect and repossess on their own, buy orders, weapon-provenance serials, a
 Commerce Bureau admin dashboard, and commerce analytics. Replaces `vorp_stores` entirely.
 
-**Status: v1.0.0-rc.** Every build phase and the cross-player duo ledger have passed. See
+**Status: v1.0.0-rc — every build phase and the cross-player duo ledger have passed (2026-08-11).** See
 [docs/03-CODING-PLAN.md](docs/03-CODING-PLAN.md) and [docs/testing/](docs/testing/).
 
 ## Requirements
@@ -62,6 +62,10 @@ exports.sovereign_stores:GetStoresForCharacter(charid)  --> array of { id, code,
 
 -- Ownership (for a realty / auction script)
 exports.sovereign_stores:AssignOwner(storeId, charid)   --> ok, err   (starts the tax cycle)
+exports.sovereign_stores:ReleaseStore(storeId, opts)    --> ok, payout, settled
+exports.sovereign_stores:ArchiveStore(storeId, reason)  --> ok
+exports.sovereign_stores:CreateStore({ name=, coords=, category=, npcModel=, code=, owner=, open= })
+                                                        --> storeId, err  (idempotent by code)
 
 -- Weapons (for a law MDT)
 exports.sovereign_stores:LookupWeaponSerial('BWM-042187')  --> { serial, weapon, sold_to_charid, store_name, code, created_at } | nil
@@ -83,7 +87,20 @@ sovereign_stores:storeOpened     -- { store, name, code }
 sovereign_stores:storeClosed     -- { store, name, code }
 sovereign_stores:employeeClockIn -- { store, charid }
 sovereign_stores:repossessed     -- { store, reason, swept }
+sovereign_stores:released        -- { store, code, name, formerOwner, reason, payout, settled }
 ```
+
+### A store is one person's business
+
+Stores are **one-off**. When one ends — sold back, seized for unpaid tax, revoked for absence — it
+is **retired**, not recycled: it leaves the working directory, its blip and counter disappear, and
+the premises are free for someone else to charter their own store there. The record survives
+forever in the Bureau's Archive, because weapons sold under its code still carry that mark.
+
+`ReleaseStore` is the *voluntary* ending and pays the departing owner out — wages settle first, the
+county collects any tax already owed, and the remainder of both ledgers goes to them.
+`ArchiveStore` retires without payment. Neither confiscates; only repossession sweeps to the
+treasury.
 
 `store` is a numeric id for player stores and a `'p:<id>'` / config key string in buyer-facing
 events — check the field shape per event above.
