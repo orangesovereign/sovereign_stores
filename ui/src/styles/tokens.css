@@ -1,76 +1,117 @@
 /* =====================================================================
-   SOVEREIGN STORES · DESIGN TOKENS (owner-approved concept, docs/04)
+   SOVEREIGN STORES — design tokens
    ---------------------------------------------------------------------
-   Palette follows the county system (sc-theme lineage). Type follows
-   the concept: Rye display · Special Elite labels · Crimson Text body —
-   all bundled locally (OFL). No CDN, ever.
-   Rule zero: nothing renders below 11px.
+   The :root block below is COPIED VERBATIM from sovereign_ui's own
+   tokens.css (sovereign_lib/source/sovereign-ui/src/styles/tokens.css),
+   names included, so this resource and every library surface resolve the
+   same colour from the same variable. Restyling the county means changing
+   sovereign_ui and copying this block across — never re-deriving values
+   by eye. Same rule sovereign_crafting documents.
+
+   ⚠ Do NOT add `backdrop-filter` anywhere in this UI. Some RedM CEF
+   builds render it as a SOLID BLACK BOX rather than a blur, because the
+   NUI page behind it is transparent — it looks perfect in a browser and
+   ships as an opaque rectangle over the game. The rgba() panel
+   backgrounds are what actually provide the see-through.
+   (Diagnosed twice already in this suite; --sov-backdrop-blur is kept
+   below only so this file stays a faithful copy. It is never applied.)
+
+   ⚠ No @font-face here, deliberately. The county's faces are STACKS with
+   system fallbacks (Bitter→Rockwell→Georgia, Inter→Segoe UI→Arial) —
+   sovereign_ui and sovereign_crafting bundle no font files, and neither
+   does this. The previously bundled Rye/Cinzel/Crimson woff2 were dropped
+   when this panel joined the family.
    ===================================================================== */
 
-@font-face {
-  font-family: 'Rye';
-  src: url('../assets/fonts/Rye-Regular.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: block;
-}
-@font-face {
-  font-family: 'Cinzel';
-  src: url('../assets/fonts/Cinzel-Bold.woff2') format('woff2');
-  font-weight: 700; font-style: normal; font-display: block;
-}
-@font-face {
-  font-family: 'Crimson Text';
-  src: url('../assets/fonts/CrimsonText-Regular.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: block;
-}
-@font-face {
-  font-family: 'Crimson Text';
-  src: url('../assets/fonts/CrimsonText-SemiBold.woff2') format('woff2');
-  font-weight: 600; font-style: normal; font-display: block;
-}
-@font-face {
-  font-family: 'Crimson Text';
-  src: url('../assets/fonts/CrimsonText-Bold.woff2') format('woff2');
-  font-weight: 700; font-style: normal; font-display: block;
-}
-
 :root {
-  /* Ground */
-  --sv-black: #050505;
-  --sv-charcoal: #0a0a0a;
-  --sv-gunmetal: #131110;
-  --sv-raised: #191512;
-  --sv-well: #0e0c0a;
-  --sv-umber: #2a1d10;
+  --sov-black: #090b0c;
+  --sov-black-soft: #111416;
+  --sov-gunmetal: #252a2d;
+  --sov-gunmetal-light: #343a3d;
+  --sov-oxblood: #78232d;
+  --sov-oxblood-bright: #9b3540;
+  --sov-brass: #aa8551;
+  --sov-brass-bright: #d0ad73;
+  --sov-ivory: #ebe5dc;
+  --sov-smoke: #858b8e;
+  --sov-success: #748e6e;
+  --sov-warning: #c39657;
+  --sov-danger: #a94a4c;
+  --sov-info: #64828c;
+  --sov-panel: rgba(14, 17, 19, 0.92);
+  --sov-panel-raised: rgba(29, 33, 35, 0.95);
+  --sov-border: rgba(170, 133, 81, 0.25);
+  --sov-border-soft: rgba(133, 139, 142, 0.14);
+  --sov-font-display: Bitter, Rockwell, Georgia, serif;
+  --sov-font-body: Inter, "Segoe UI", Arial, sans-serif;
+  --sov-text-xs: 10px;
+  --sov-text-sm: 11px;
+  --sov-text-md: 13px;
+  --sov-text-lg: 15px;
+  --sov-radius-sm: 4px;
+  --sov-radius-md: 7px;
+  --sov-radius-lg: 12px;
+  --sov-shadow: 0 18px 50px rgba(0, 0, 0, 0.48);
+  --sov-motion-fast: 160ms;
+  --sov-motion-normal: 280ms;
+  --sov-motion-slow: 480ms;
+  --sov-ease: cubic-bezier(.18, .84, .28, 1);
+  --sov-backdrop-blur: 14px;   /* copied for fidelity — never applied, see above */
+}
 
-  /* Brass — structure, labels, monograms */
-  --sv-brass: #8a5c2e;
-  --sv-brass-light: #b08347;
-  --sv-gold: #d9a95c;
+/* ── Bridge ───────────────────────────────────────────────────────────
+   This panel was built before the county had a shared kit, so its rules
+   speak --sv-*. Rather than rename ~700 lines of CSS (and risk the look
+   in a dozen places at once), every old name is re-pointed at the
+   library token it corresponds to. The values now come from exactly one
+   place — sovereign_ui — which is the whole point of the copy above.
+   New rules should prefer the --sov-* names directly.
 
-  /* Oxblood — primary actions + danger only */
-  --sv-red: #6d1f12;
-  --sv-red-hover: #8a2a18;
-  --sv-red-dark: #451c0c;
+   Type SIZES are deliberately NOT bridged. The library's default body is
+   13px; this panel keeps its larger scale because the owner's standing
+   readability rule for this UI is that nothing renders below 11px, and
+   the storefront is read at a distance. Colour, face, radius, depth and
+   translucency all match the family.
+   ------------------------------------------------------------------ */
+:root {
+  /* ground + surfaces */
+  --sv-black: var(--sov-black);
+  --sv-charcoal: var(--sov-black-soft);
+  --sv-gunmetal: var(--sov-gunmetal);
+  --sv-raised: var(--sov-panel-raised);
+  --sv-well: var(--sov-black);
+  --sv-umber: var(--sov-gunmetal-light);
 
-  /* Text */
-  --sv-parchment: #cfa878;
-  --sv-ivory: #e6d9bd;
-  --sv-muted: #9d8c74;
-  --sv-faint: #6a5d4c;
+  /* brass — structure, labels, monograms */
+  --sv-brass: var(--sov-brass);
+  --sv-brass-light: var(--sov-brass-bright);
+  --sv-gold: var(--sov-brass-bright);
 
-  /* States */
-  --sv-sage: #7d8d5c;
-  --sv-amber: #b57e2c;
-  --sv-danger: #a03322;
+  /* oxblood — primary actions + danger only */
+  --sv-red: var(--sov-oxblood);
+  --sv-red-hover: var(--sov-oxblood-bright);
+  --sv-red-dark: #4b1a20;
 
-  /* Type */
-  --sv-display: 'Rye', 'Cinzel', Georgia, serif;
-  --sv-label: 'Cinzel', Georgia, serif;   /* owner rejected the typewriter face */
-  --sv-body: 'Crimson Text', Georgia, serif;
+  /* text */
+  --sv-parchment: var(--sov-ivory);
+  --sv-ivory: var(--sov-ivory);
+  --sv-muted: var(--sov-smoke);
+  --sv-faint: #6f7578;
+  --sv-disabled: #5b6165;
 
-  /* Rhythm */
-  --sv-frame: 1px solid var(--sv-umber);
-  --sv-hairline: 1px solid rgba(138, 92, 46, 0.35);
-  --sv-hairline-soft: 1px solid rgba(138, 92, 46, 0.18);
-  --sv-shadow: 0 22px 48px rgba(0, 0, 0, 0.8);
+  /* states */
+  --sv-sage: var(--sov-success);
+  --sv-amber: var(--sov-warning);
+  --sv-danger: var(--sov-danger);
+
+  /* type — the county's stacks, with system fallbacks */
+  --sv-display: var(--sov-font-display);
+  --sv-label: var(--sov-font-display);
+  --sv-body: var(--sov-font-body);
+
+  /* rhythm */
+  --sv-frame: 1px solid var(--sov-border);
+  --sv-hairline: 1px solid var(--sov-border);
+  --sv-hairline-soft: 1px solid var(--sov-border-soft);
+  --sv-shadow: var(--sov-shadow);
 }
