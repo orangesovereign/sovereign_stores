@@ -91,3 +91,34 @@ SET @s := IF(@c = 0,
     'ALTER TABLE `sovereign_stores` ADD COLUMN `archive_reason` VARCHAR(64) NULL DEFAULT NULL',
     'SELECT 1');
 PREPARE up_20260809b FROM @s; EXECUTE up_20260809b; DEALLOCATE PREPARE up_20260809b;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2026-08-14 · One tax authority per store (owner ruling)
+-- A store on a realty business property is already taxed by
+-- sovereign_banking (sovereign_realestate hands it over with
+-- RegisterBusiness at purchase). Those stores must NOT also be assessed
+-- here — that was two bills and two repossession paths on one property.
+-- NULL = the county assesses it (a store chartered outside realty).
+-- ─────────────────────────────────────────────────────────────────────
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sovereign_stores'
+             AND COLUMN_NAME = 'tax_authority');
+SET @s := IF(@c = 0,
+    'ALTER TABLE `sovereign_stores` ADD COLUMN `tax_authority` VARCHAR(32) NULL DEFAULT NULL',
+    'SELECT 1');
+PREPARE up_20260814 FROM @s; EXECUTE up_20260814; DEALLOCATE PREPARE up_20260814;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2026-08-16 · One shop, one inventory (owner ruling)
+-- A store chartered on a realty business property shares that property's
+-- stash rather than keeping a second back room of its own. The owning
+-- resource registers and sizes the inventory; we only address it. NULL =
+-- our own sovstore_<id>, exactly as before.
+-- ─────────────────────────────────────────────────────────────────────
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sovereign_stores'
+             AND COLUMN_NAME = 'storage_id');
+SET @s := IF(@c = 0,
+    'ALTER TABLE `sovereign_stores` ADD COLUMN `storage_id` VARCHAR(64) NULL DEFAULT NULL',
+    'SELECT 1');
+PREPARE up_20260816 FROM @s; EXECUTE up_20260816; DEALLOCATE PREPARE up_20260816;

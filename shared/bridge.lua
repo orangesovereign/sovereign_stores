@@ -199,11 +199,34 @@ if IS_SERVER then
     -- is always presented through our own NUI, backed by these calls.
     Bridge.storage = {}
 
-    function Bridge.storage.idFor(storeId)
-        return ('%s%d'):format(Config.StorageIdPrefix, storeId)
+    -- storeId -> inventory id owned by ANOTHER resource (owner ruling
+    -- 2026-08-16). A store chartered on a realty business property shares
+    -- that property's stash instead of keeping a second back room, so a
+    -- shopkeeper stocks the shelves from the same box they store goods in.
+    -- Populated by PStores from the storage_id column; empty for every store
+    -- chartered here, which keeps its own sovstore_<id> exactly as before.
+    local foreignStorage = {}
+
+    function Bridge.storage.setId(storeId, invId)
+        foreignStorage[tonumber(storeId)] =
+            (type(invId) == 'string' and invId ~= '') and invId or nil
     end
 
+    function Bridge.storage.isForeign(storeId)
+        return foreignStorage[tonumber(storeId)] ~= nil
+    end
+
+    function Bridge.storage.idFor(storeId)
+        return foreignStorage[tonumber(storeId)]
+            or ('%s%d'):format(Config.StorageIdPrefix, storeId)
+    end
+
+    --- Registering a borrowed inventory would be actively harmful: it is the
+    --- owning resource that decides the slot count and the flags, and a
+    --- re-register here would quietly reset a 200-slot shop to our 30 on
+    --- every boot. So we address a foreign stash, we never define it.
     function Bridge.storage.register(storeId, label, slots)
+        if Bridge.storage.isForeign(storeId) then return true end
         local ok = pcall(function()
             exports[INV]:registerInventory({
                 id = Bridge.storage.idFor(storeId),

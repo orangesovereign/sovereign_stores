@@ -15,11 +15,14 @@ import {
 /* Why a chartered store isn't being assessed — shown in place of a state
    chip so the screen explains itself (ledger Phase 4 T1). */
 const EXCLUDE_LABEL = {
+  external: 'BANK',
   no_owner: 'NO OWNER',
   no_levy: 'NO LEVY',
   repossessed: 'REPOSSESSED',
 }
 const EXCLUDE_WHY = {
+  external: 'Assessed by sovereign_banking as a registered business, not by the county. '
+    + 'The property was handed over at purchase, so billing one here too would be a second bill.',
   no_owner: 'Nobody holds this charter — assign an owner before the county can bill it.',
   no_levy: 'Purchase price × tax rate comes to nothing. Set both on the store detail.',
   repossessed: 'The county already holds this property.',
@@ -266,7 +269,9 @@ export default function Bureau({ initial }) {
                 )}
                 <p className="mgmt__hint">
                   A store is only assessed once it has an owner AND a levy worth collecting
-                  (purchase price × tax rate). Anything greyed above says which of those is missing.
+                  (purchase price × tax rate). Anything greyed above says which of those is missing —
+                  and a <b>BANK</b> row is one the county never bills at all: it sits on a realty
+                  business property, which sovereign_banking already assesses.
                 </p>
               </div>
               <div className="sheetcard">

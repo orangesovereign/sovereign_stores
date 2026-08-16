@@ -112,6 +112,8 @@ local ACTIONS = {
         return ok, err
     end,
     set_tax_rate = function(s, p, actor)
+        -- the bank assesses this one; a county rate here would be a fiction
+        if PStores.taxIsExternal(s) then return false, 'tax_external' end
         local ok, err = PStores.setTaxRate(s.id, tonumber(p.rate), actor)
         if ok then Taxes.startCycle(s.id) end     -- a rate that now matters starts a clock
         return ok, err
@@ -155,7 +157,8 @@ CreateThread(function()
             local q = Taxes.quote(s)
             local owner = s.owner_charid and charInfo(s.owner_charid) or nil
             local exclude = nil
-            if not s.owner_charid then exclude = 'no_owner'
+            if PStores.taxIsExternal(s) then exclude = 'external'
+            elseif not s.owner_charid then exclude = 'no_owner'
             elseif q.amount <= 0 then exclude = 'no_levy' end
 
             if not exclude and q.state == 'delinquent' then delinquent = delinquent + 1 end
@@ -166,7 +169,7 @@ CreateThread(function()
                 reserve = q.reserve, operating = Ledger.balance(id, 'operating'),
                 since = q.since,
                 purchasePrice = s.purchase_price, taxRate = s.tax_rate,
-                exclude = exclude,
+                exclude = exclude, authority = s.tax_authority,
                 covered = (q.reserve + Ledger.balance(id, 'operating')) >= q.amount,
             }
         end

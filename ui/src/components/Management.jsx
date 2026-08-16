@@ -75,6 +75,7 @@ export default function Management({ initial }) {
     not_carried: "You aren't carrying that.",
     insufficient: "The ledger can't cover that.",
     no_permission: "You don't have the authority for that.",
+    tax_external: 'The bank assesses this store, not the county — set its rate there.',
     already_staff: "They're already on the books here.",
     coowner_cap: 'The co-owner chair is taken — clear it first.',
     employee_cap: 'The roster is full.',
@@ -174,9 +175,11 @@ function Overview({ data }) {
       <div className="tiles">
         <StatTile icon={<IconLedger />} label="Operating Ledger" value={fmtMoney(s.balances.operating)} />
         <StatTile icon={<IconBank />} label="Tax Reserve" value={fmtMoney(s.balances.tax)}
-          sub={data.tax && data.tax.amount > 0
-            ? `${fmtMoney(data.tax.amount)} due ${data.tax.dueDate || 'soon'}`
-            : 'no levy set'} />
+          sub={data.taxAuthority
+            ? 'assessed by the bank'
+            : (data.tax && data.tax.amount > 0
+              ? `${fmtMoney(data.tax.amount)} due ${data.tax.dueDate || 'soon'}`
+              : 'no levy set')} />
         <StatTile icon={<IconPulse />} label="Today's Sales" value={fmtMoney(data.today.sales)}
           sub={`${data.today.orders} customer order${data.today.orders === 1 ? '' : 's'}`} />
         <StatTile icon={<IconClock />} label="On Shift" value={(data.shiftRoster || []).length}
@@ -186,7 +189,9 @@ function Overview({ data }) {
       {(() => {
         const notices = []
         const tax = data.tax || {}
-        if (tax.state === 'delinquent') {
+        if (data.taxAuthority) {
+          // billed by sovereign_banking — the county has no notice to give
+        } else if (tax.state === 'delinquent') {
           notices.push({ key: 'tax', flag: 'Tax delinquent',
             text: `${fmtMoney(tax.amount)} owed — the county collects again shortly. Deposit into the tax reserve.` })
         } else if (tax.amount > 0 && (tax.reserve || 0) < tax.amount) {

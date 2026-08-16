@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS `sovereign_stores` (
     `archived_at`      DATETIME      NULL DEFAULT NULL,               -- set when the business ends (one-off rule)
     `archive_reason`   VARCHAR(64)   NULL DEFAULT NULL,               -- sold_back | tax | inactivity | admin
     `purchase_price`   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    `tax_rate`         DECIMAL(5,2)  NOT NULL DEFAULT 0.00,        -- % of purchase_price, monthly
+    `tax_rate`         DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+    `tax_authority`    VARCHAR(32)   NULL DEFAULT NULL,             -- NULL = the county assesses; else who does (e.g. sovereign_banking)        -- % of purchase_price, monthly
     `tax_due_date`     DATE          NULL DEFAULT NULL,
     `tax_state`        ENUM('current','delinquent') NOT NULL DEFAULT 'current',
     `delinquent_since` DATETIME      NULL DEFAULT NULL,            -- set on failed collection (72h clock)

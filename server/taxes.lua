@@ -26,6 +26,15 @@ end
 
 ---Owner-facing money summary used by the panel and the Bureau.
 function Taxes.quote(s)
+    -- A store the bank already bills is not assessed here at all; the
+    -- amount is zeroed so no surface can imply a second bill is coming.
+    if PStores.taxIsExternal(s) then
+        return {
+            amount = 0, dueDate = nil, state = 'external',
+            reserve = Ledger.balance(s.id, 'tax'), since = nil,
+            authority = s.tax_authority,
+        }
+    end
     return {
         amount   = dueAmount(s),
         dueDate  = s.tax_due_date,
@@ -40,6 +49,7 @@ end
 function Taxes.startCycle(storeId)
     local s = PStores.get(storeId)
     if not s or not s.owner_charid then return false end
+    if PStores.taxIsExternal(s) then return false end  -- the bank bills this one
     if s.tax_due_date then return false end            -- already ticking
     if dueAmount(s) <= 0 then return false end         -- nothing owed: no clock
     local period = (Config.Tax and Config.Tax.PeriodDays) or 30
@@ -150,7 +160,8 @@ function Taxes.runCycle()
     local grace = (Config.Tax and Config.Tax.GraceHours) or 72
 
     for id, s in pairs(PStores.all()) do
-        if s.owner_charid and not PStores.isRetired(s) and dueAmount(s) > 0 then
+        if s.owner_charid and not PStores.isRetired(s)
+            and not PStores.taxIsExternal(s) and dueAmount(s) > 0 then
             -- 1) delinquent stores whose grace has run out
             if s.tax_state == 'delinquent' then
                 local expired = Db.scalar(

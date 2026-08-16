@@ -107,6 +107,7 @@ local function mgmtPayload(src, storeId)
         buyOrders = BuyOrders.list(s.id),
         analytics = Analytics.forStore(s.id),
         tax = Taxes.quote(s),
+        taxAuthority = s.tax_authority,
         webhook = { url = s.webhook_url, events = s.webhook_events or {}, types = Webhooks.eventTypes() },
         staff = staff,
         maxEmployees = Config.MaxEmployees,

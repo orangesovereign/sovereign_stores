@@ -35,6 +35,10 @@ function PStores.loadAll()
         roster[row.id] = Db.query(
             'SELECT charid, permissions, pay_model, pay_rate, hired_at, hired_by FROM sovereign_store_employees WHERE store_id = ?',
             { row.id }) or {}
+        -- Adopt a borrowed stash BEFORE registering: a store sharing a realty
+        -- property's storage must not have its own back room minted over the
+        -- top, which would reset the owning resource's slot count on us.
+        Bridge.storage.setId(row.id, row.storage_id)
         Bridge.storage.register(row.id, row.name .. ' — Back Room', Config.StorageSlots)
     end
     local n = 0 for _ in pairs(cache) do n = n + 1 end
@@ -56,6 +60,18 @@ function PStores.isRetired(s)
     if type(s) ~= 'table' then s = cache[tonumber(s)] end
     if not s then return false end
     return s.status == 'archived' or s.status == 'repossessed'
+end
+
+---Who bills this store's property tax. A store chartered on a realty
+---BUSINESS property is already registered with sovereign_banking by
+---sovereign_realestate (RegisterBusiness at purchase), so the county must
+---not assess it a second time — that was two bills and two repossession
+---paths on one property (owner ruling 2026-08-14). NULL/absent means the
+---county assesses it, which is the case for any store chartered outside
+---realty.
+function PStores.taxIsExternal(s)
+    if type(s) ~= 'table' then s = cache[tonumber(s)] end
+    return s ~= nil and s.tax_authority ~= nil and s.tax_authority ~= ''
 end
 
 ---Every store that is still a going concern.
@@ -114,18 +130,21 @@ end
 
 function PStores.create(data, actorCharid)
     local id = Db.insert(
-        [[INSERT INTO sovereign_stores (class, name, category, status, register_coords, npc_model)
-          VALUES ('player', ?, ?, 'closed', ?, ?)]],
+        [[INSERT INTO sovereign_stores (class, name, category, status, register_coords, npc_model, tax_authority, storage_id)
+          VALUES ('player', ?, ?, 'closed', ?, ?, ?, ?)]],
         { data.name, data.category or 'general',
-          data.coords and json.encode(data.coords) or nil, data.npcModel })
+          data.coords and json.encode(data.coords) or nil, data.npcModel,
+          data.taxAuthority, data.storageId })
     if not id then return nil, 'db' end
     cache[id] = decode({
         id = id, class = 'player', name = data.name, category = data.category or 'general',
         status = 'closed', purchase_price = 0, tax_rate = 0, tax_state = 'current',
+        tax_authority = data.taxAuthority, storage_id = data.storageId,
         branding = json.encode({}), register_coords = data.coords and json.encode(data.coords) or nil,
         npc_model = data.npcModel,
     })
     roster[id] = {}
+    Bridge.storage.setId(id, data.storageId)
     Bridge.storage.register(id, data.name .. ' — Back Room', Config.StorageSlots)
     EventLog.write(id, 'assigned', actorCharid, nil, { created = true, name = data.name })
     republish()
@@ -202,19 +221,29 @@ function PStores.archive(id, archiveReason, actorCharid)
     if not s then return false, 'unknown' end
     if PStores.isRetired(s) then return true end   -- already ended; nothing to undo
 
+    local hadCode = s.code
+
     Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ?', { s.id })
     roster[s.id] = {}
+    -- The code is RELEASED here (owner ruling 2026-08-16). It used to be held
+    -- forever on the reasoning that weapon serials pointed at it — they do
+    -- not: sovereign_weapon_serials stores store_id and Serials.lookup joins
+    -- on that, so every historical trace still resolves to the exact shop
+    -- that sold the weapon. Holding the letters hostage only meant a premises
+    -- lost its identity the first time a business there ended, which is no
+    -- longer acceptable now a storefront belongs to the building.
     Db.execute([[UPDATE sovereign_stores SET owner_charid = NULL, coowner_charid = NULL,
-                 status = 'archived', archived_at = NOW(), archive_reason = ?,
+                 code = NULL, status = 'archived', archived_at = NOW(), archive_reason = ?,
                  tax_state = 'current', delinquent_since = NULL, tax_due_date = NULL
                  WHERE id = ?]], { archiveReason or 'admin', s.id })
     s.owner_charid, s.coowner_charid = nil, nil
+    s.code = nil
     s.status, s.archive_reason = 'archived', archiveReason or 'admin'
     s.tax_state, s.delinquent_since, s.tax_due_date = 'current', nil, nil
 
-    EventLog.write(s.id, 'archived', actorCharid, nil, { reason = archiveReason })
+    EventLog.write(s.id, 'archived', actorCharid, nil, { reason = archiveReason, code = hadCode })
     TriggerEvent('sovereign_stores:archived',
-        { store = s.id, code = s.code, name = s.name, reason = archiveReason })
+        { store = s.id, code = hadCode, name = s.name, reason = archiveReason })
     republish()
     return true
 end
@@ -244,9 +273,21 @@ end
 ---  2. the county collects tax it is already owed — selling must not be a
 ---     way to walk away from an assessment
 ---  3. whatever remains in BOTH ledgers is paid to the departing owner
----  4. the business RETIRES to the archive — a store belongs to one
----     person, not to the building — so the premises stand free for
----     someone else to charter their own
+---  4. the store either retires or merely empties — see below
+---
+---Step 4 depends on who owns the shopfront (owner ruling 2026-08-16):
+---
+---  opts.keepCharter = nil    the business RETIRES to the archive. A store
+---                            chartered here belongs to one PERSON, so it
+---                            ends with them and the premises stand free.
+---  opts.keepCharter = true   the store is VACATED, not retired: owner,
+---                            co-owner and staff are cleared and the doors
+---                            close, but the charter, its 3-letter code, its
+---                            register and its category stay with the
+---                            BUILDING for whoever buys it next. This is the
+---                            realty path — a storefront created with a
+---                            business property is a fixture of the premises,
+---                            so it must survive a change of hands.
 ---
 ---If the owner is offline we cannot put cash in their hand, so the money
 ---is LEFT in the ledgers rather than vaporised — visible and recoverable.
@@ -271,7 +312,7 @@ function PStores.release(id, opts)
 
     -- 2) the county's claim, if any
     local settled = 0
-    if s.tax_state == 'delinquent' and Taxes and Taxes.quote then
+    if s.tax_state == 'delinquent' and not PStores.taxIsExternal(s) and Taxes and Taxes.quote then
         local owed = tonumber((Taxes.quote(s) or {}).amount) or 0
         settled = math.min(owed, Util.round2(operating + reserve))
         if settled > 0 then
@@ -309,14 +350,35 @@ function PStores.release(id, opts)
         payout = 0
     end
 
-    -- 4) the business ends here (one-off rule) — archive frees the premises
-    PStores.archive(s.id, 'sold_back', opts.actorCharid)
+    -- Read before step 4: archiving clears the code, and the event below
+    -- should still report which shop this was.
+    local code = s.code
+
+    -- 4) the store ends, or merely empties
+    if opts.keepCharter then
+        -- Vacated. Everything that identifies the SHOP stays — code,
+        -- category, register, clerk, storage — and everything that
+        -- identifies its PEOPLE goes.
+        Db.execute('DELETE FROM sovereign_store_employees WHERE store_id = ?', { s.id })
+        roster[s.id] = {}
+        Db.execute([[UPDATE sovereign_stores SET owner_charid = NULL, coowner_charid = NULL,
+                     status = 'closed', tax_state = 'current', delinquent_since = NULL,
+                     tax_due_date = NULL WHERE id = ?]], { s.id })
+        s.owner_charid, s.coowner_charid = nil, nil
+        s.status = 'closed'
+        s.tax_state, s.delinquent_since, s.tax_due_date = 'current', nil, nil
+        EventLog.write(s.id, 'assigned', opts.actorCharid, owner,
+            { vacated = true, reason = reason })
+    else
+        PStores.archive(s.id, 'sold_back', opts.actorCharid)
+    end
 
     EventLog.write(s.id, 'released', opts.actorCharid, owner,
-        { reason = reason, payout = payout, settled = settled })
+        { reason = reason, payout = payout, settled = settled, vacated = opts.keepCharter == true })
     TriggerEvent('sovereign_stores:released',
-        { store = s.id, code = s.code, name = s.name, formerOwner = owner,
-          reason = reason, payout = payout, settled = settled })
+        { store = s.id, code = code, name = s.name, formerOwner = owner,
+          reason = reason, payout = payout, settled = settled,
+          vacated = opts.keepCharter == true })
     republish()
     return true, payout, settled
 end

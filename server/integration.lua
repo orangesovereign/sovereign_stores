@@ -11,9 +11,12 @@
     IsStoreStaff(charid, storeId)     -> role string | nil
     GetStoresForCharacter(charid)     -> array of { id, role }
     AssignOwner(storeId, charid)      -> ok, err     (realty script hook)
-    ReleaseStore(storeId, opts)       -> ok, payout, settled  (realty sale-back)
+    ReleaseStore(storeId, opts)       -> ok, payout, settled  (sale-back, RETIRES)
+    VacateStore(storeId, opts)        -> ok, payout, settled  (sale-back, KEEPS charter)
+    RepossessStore(storeId, reason)   -> ok, swept   (seizure: sweep + retire)
     ArchiveStore(storeId, reason)     -> ok, err     (retire without touching money)
     CreateStore(data)                 -> storeId, err (county-script charter hook)
+    ListCategories()                  -> array of charter category keys
     LookupWeaponSerial(serial)        -> registry row (server/serials.lua)
     GetGovernmentFund()               -> number      (server/fund.lua)
     SpendGovernmentFund(amount, note) -> ok          (server/fund.lua)
@@ -37,6 +40,7 @@ local function summarize(s)
         ownerCharid = s.owner_charid, coownerCharid = s.coowner_charid,
         taxState = s.tax_state, taxDue = s.tax_due_date,
         coords = s.register_coords,
+        storageId = s.storage_id,   -- nil = our own back room
         balances = { operating = Ledger.balance(s.id, 'operating'), tax = Ledger.balance(s.id, 'tax') },
     }
 end
@@ -103,11 +107,52 @@ exports('ReleaseStore', function(storeId, opts)
     return PStores.release(tonumber(storeId), opts)
 end)
 
+---The realty sale-back path where the shopfront belongs to the BUILDING
+---(owner ruling 2026-08-16). Settles and pays out exactly as ReleaseStore
+---does, then clears the owner and the staff — but leaves the charter, its
+---3-letter code, its register and its category standing for whoever buys
+---the premises next. Use ReleaseStore when the business should end with
+---the person; use this when the shop is a fixture.
+---  opts = { toCharid?, reason?, actorCharid? }
+--- returns ok, payout, settled
+exports('VacateStore', function(storeId, opts)
+    opts = opts or {}
+    opts.keepCharter = true
+    return PStores.release(tonumber(storeId), opts)
+end)
+
+---Seizure. Sweeps BOTH ledgers into the county treasury and then retires
+---the business — the county does not keep a going concern on the books.
+---This is what a realty confiscation or absence-repossession should call:
+---ArchiveStore alone would strand the owner's money in a dead store.
+--- returns ok, swept
+exports('RepossessStore', function(storeId, reason)
+    return PStores.repossess(tonumber(storeId), reason or 'repossession', nil)
+end)
+
 ---Retire a store outright, without moving any money. For a realty sale
----use ReleaseStore (it settles wages and pays the owner out first); this
----is the blunt instrument for a premises that is simply going away.
+---use ReleaseStore or VacateStore (they settle wages and pay the owner out
+---first), and for a seizure use RepossessStore (it sweeps to the treasury);
+---this is the blunt instrument for a premises that is simply going away.
 exports('ArchiveStore', function(storeId, reason)
     return PStores.archive(tonumber(storeId), reason or 'admin', nil)
+end)
+
+---The charter categories a store may be created under. Exported so county
+---scripts offering a "what kind of shop is this" picker read the county's
+---list rather than keeping a copy that drifts out of step with ours.
+--- returns array of category keys, 'general' first
+exports('ListCategories', function()
+    local out = { 'general' }
+    for cat in pairs((Config.BlipCatalog or {}).categories or {}) do
+        out[#out + 1] = cat
+    end
+    table.sort(out, function(a, b)
+        if a == 'general' then return true end
+        if b == 'general' then return false end
+        return a < b
+    end)
+    return out
 end)
 
 ---For county scripts (e.g. sovereign_stables) that charter a storefront at their
@@ -123,6 +168,15 @@ end)
 ---    code,                 -- optional 3 uppercase letters; enables idempotency + lookup
 ---    owner,                -- optional charid to assign (starts the tax clock)
 ---    open,                 -- optional bool; open the store immediately
+---    taxAuthority,         -- optional; the resource that bills this store's
+---                          --   property tax (e.g. 'sovereign_banking'). Set it and
+---                          --   the county stops assessing the store itself.
+---    storageId,            -- optional custom-inventory id to use as the back
+---                          --   room instead of our own sovstore_<id>. The
+---                          --   CALLER owns it: it must already be registered,
+---                          --   and its slot count and flags are theirs to set.
+---                          --   Lets a realty business property keep ONE stash
+---                          --   rather than a shop box and a property box.
 ---  }
 --- returns storeId, err
 exports('CreateStore', function(data)
@@ -145,6 +199,10 @@ exports('CreateStore', function(data)
     local id, err = PStores.create({
         name = data.name, category = data.category or 'general',
         coords = data.coords, npcModel = data.npcModel,
+        -- who bills the property tax; nil = the county assesses it here
+        taxAuthority = data.taxAuthority,
+        -- a borrowed back room; nil = we mint our own
+        storageId = type(data.storageId) == 'string' and data.storageId or nil,
     }, nil)
     if not id then return nil, err or 'db' end
 
