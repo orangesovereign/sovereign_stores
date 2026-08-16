@@ -562,6 +562,32 @@ function PStores.setCashier(id, model, actorCharid)
     return true
 end
 
+---Move a store's register — the till, the cashier ped and the shop prompts
+---all stand on this one point. It could only be set at charter until now,
+---which meant a storefront put down in the wrong spot was stuck there: the
+---realty script would save a new position on its side and nothing here ever
+---heard about it, so a restart just re-read the original coords.
+---
+---republish() pushes the new position into the placements state bag and the
+---client's change handler rebuilds the ped where it now stands — no restart.
+---@param coords table {x,y,z,h?}
+function PStores.setRegisterCoords(id, coords, actorCharid)
+    local s = cache[tonumber(id)]
+    if not s then return false, 'unknown' end
+    if PStores.isRetired(s) then return false, 'retired' end
+    if type(coords) ~= 'table' then return false, 'bad_coords' end
+    local x, y, z = tonumber(coords.x), tonumber(coords.y), tonumber(coords.z)
+    if not (x and y and z) then return false, 'bad_coords' end
+    local rc = { x = x, y = y, z = z, h = tonumber(coords.h) or 0.0 }
+
+    Db.execute('UPDATE sovereign_stores SET register_coords = ? WHERE id = ?',
+        { json.encode(rc), s.id })
+    s.register_coords = rc
+    EventLog.write(s.id, 'adjustment', actorCharid, nil, { register_moved = rc })
+    republish()
+    return true
+end
+
 function PStores.rename(id, name, actorCharid)
     local s = cache[tonumber(id)]
     if not s then return false, 'unknown' end

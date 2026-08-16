@@ -15,6 +15,11 @@
     VacateStore(storeId, opts)        -> ok, payout, settled  (sale-back, KEEPS charter)
     RepossessStore(storeId, reason)   -> ok, swept   (seizure: sweep + retire)
     ArchiveStore(storeId, reason)     -> ok, err     (retire without touching money)
+    VacateStore(storeId, opts)        -> ok, payout, settled  (sale-back, charter KEPT)
+    RepossessStore(storeId, reason)   -> ok, swept   (seizure: sweep + retire)
+    SetStoreRegister(storeId, coords) -> ok, err     (move the till/ped/prompts)
+    SetStoreCashier(storeId, model)   -> ok, err     (swap the cashier ped)
+    ListCategories()                  -> array of charter category keys
     CreateStore(data)                 -> storeId, err (county-script charter hook)
     ListCategories()                  -> array of charter category keys
     LookupWeaponSerial(serial)        -> registry row (server/serials.lua)
@@ -128,6 +133,23 @@ end)
 --- returns ok, swept
 exports('RepossessStore', function(storeId, reason)
     return PStores.repossess(tonumber(storeId), reason or 'repossession', nil)
+end)
+
+---Move a store's register: the till, the cashier ped and the shop prompts
+---all stand on this point. Previously settable only at charter, so a county
+---script that re-surveyed the spot on its own side had no way to tell us and
+---the ped never budged.
+---  coords = { x, y, z, h? }
+--- returns ok, err
+exports('SetStoreRegister', function(storeId, coords)
+    return PStores.setRegisterCoords(tonumber(storeId), coords, nil)
+end)
+
+---Swap the cashier ped's model. Validated against Config.CashierPeds, so a
+---caller cannot put an arbitrary model behind the counter.
+--- returns ok, err
+exports('SetStoreCashier', function(storeId, model)
+    return PStores.setCashier(tonumber(storeId), model, nil)
 end)
 
 ---Retire a store outright, without moving any money. For a realty sale
