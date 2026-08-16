@@ -195,6 +195,31 @@ function Validate.run()
                     end
                 end
             end
+
+            -- Catalog SHAPE, checked whether or not the store is enabled.
+            -- A stray extra `buy = {` wrapping the list is still valid Lua —
+            -- it just nests every item one level too deep, so ipairs finds
+            -- nothing and the shelves come up empty with no error anywhere.
+            -- That cost a live debugging session; it names itself now.
+            if type(def) == 'table' then
+                for _, which in ipairs({ 'buy', 'sell' }) do
+                    local list = def[which]
+                    if list ~= nil then
+                        if type(list) ~= 'table' then
+                            bad(('NPCStores.%s: %s must be a list of entries'):format(key, which))
+                        else
+                            local arrayN, total = #list, 0
+                            for _ in pairs(list) do total = total + 1 end
+                            if total > arrayN then
+                                bad(('NPCStores.%s: the %s catalog has named keys — an entry is nested '
+                                     .. 'one level too deep (look for a stray "%s = {" wrapping the list). '
+                                     .. 'Only %d of %d entries will ever be read.')
+                                    :format(key, which, which, arrayN, total))
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 
